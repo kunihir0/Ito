@@ -1,0 +1,46 @@
+# Xcode
+#
+## Build generated
+build/
+DerivedData/
+
+## Various settings
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+
+## Other
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+
+# CocoaPods
+Pods/
+# Podfile.lock # Cocoapods officially suggests you check in the Pods directory for consistency and security reasons, but some teams ignore it and only track the Podfile/Podfile.lock files.
+
+# Carthage
+Carthage/Build/
+
+# fastlane
+# It is recommended to not store screenshots in the git repo.
+
+# General macOS files
+.DS_Store
