@@ -20,6 +20,9 @@ struct SettingsView: View {
                     NavigationLink(destination: Text("Network Settings View")) {
                         Label("Network", systemImage: "wifi")
                     }
+                    NavigationLink(destination: TrackerSettingsView()) {
+                        Label("Trackers", systemImage: "arrow.triangle.2.circlepath")
+                    }
                 }
 
                 Section(header: Text("Extensions")) {

@@ -61,17 +61,22 @@ struct LibraryItemView: View {
                     NavigationLink(destination: AnimeView(runner: runner, anime: anime, pluginId: item.pluginId)) {
                         cardContent
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PlainButtonStyle())
                 } else if !item.isAnime, let manga = decodedManga {
                     NavigationLink(destination: MangaView(runner: runner, manga: manga, pluginId: item.pluginId)) {
                         cardContent
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PlainButtonStyle())
                 } else {
                     cardContent
                 }
             } else {
                 cardContent
+                    .onTapGesture {
+                        if !isLoaded {
+                            print("LibraryItemView tapped but runner is not ready yet.")
+                        }
+                    }
             }
         }
         .onAppear {
@@ -106,17 +111,15 @@ struct LibraryItemView: View {
                 }
                 
                 // Type badge only
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(item.isAnime ? "Anime" : "Manga")
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(item.isAnime ? Color.blue : Color.orange)
-                        .foregroundColor(.white)
-                        .cornerRadius(4)
-                }
-                .padding(6)
+                Text(item.isAnime ? "Anime" : "Manga")
+                    .font(.caption2)
+                    .fontWeight(.bold)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(item.isAnime ? Color.blue : Color.orange)
+                    .foregroundColor(.white)
+                    .cornerRadius(4)
+                    .padding(4)
                 
                 if !isLoaded && runner != nil {
                     ProgressView()
