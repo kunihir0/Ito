@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3A7509552F57FFE40057955D /* ito-runner in Frameworks */ = {isa = PBXBuildFile; productRef = 3A7509542F57FFE40057955D /* ito-runner */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		3A43D88D2F57E4BF008E061E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -29,9 +33,22 @@
 		3A43D8962F57E4BF008E061E /* ItoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ItoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		3AAE0DF82F5804EC004E7F5B /* Exceptions for "Ito" folder in "Ito" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 3A43D87E2F57E4BD008E061E /* Ito */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		3A43D8812F57E4BD008E061E /* Ito */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3AAE0DF82F5804EC004E7F5B /* Exceptions for "Ito" folder in "Ito" target */,
+			);
 			path = Ito;
 			sourceTree = "<group>";
 		};
@@ -52,6 +69,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3A7509552F57FFE40057955D /* ito-runner in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +130,7 @@
 			);
 			name = Ito;
 			packageProductDependencies = (
+				3A7509542F57FFE40057955D /* ito-runner */,
 			);
 			productName = Ito;
 			productReference = 3A43D87F2F57E4BD008E061E /* Ito.app */;
@@ -196,7 +215,7 @@
 			mainGroup = 3A43D8762F57E4BD008E061E;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				3A43D8A92F57E809008E061E /* XCRemoteSwiftPackageReference "ito-runner" */,
+				3A7509532F57FFE40057955D /* XCLocalSwiftPackageReference "../../../ito-runner" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3A43D8802F57E4BD008E061E /* Products */;
@@ -403,6 +422,8 @@
 				DEVELOPMENT_TEAM = M3875U7845;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Ito/Info.plist;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -436,6 +457,8 @@
 				DEVELOPMENT_TEAM = M3875U7845;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Ito/Info.plist;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -584,16 +607,19 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		3A43D8A92F57E809008E061E /* XCRemoteSwiftPackageReference "ito-runner" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/kunihir0/ito-runner";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		3A7509532F57FFE40057955D /* XCLocalSwiftPackageReference "../../../ito-runner" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../../ito-runner";
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3A7509542F57FFE40057955D /* ito-runner */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = "ito-runner";
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 3A43D8772F57E4BD008E061E /* Project object */;
 }

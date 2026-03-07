@@ -1,15 +1,6 @@
 {
-  "originHash" : "d8be9b360fb9591a231a6149ceeb31cb8b5dd8a4d644f7f3c0a9e17f1a458f9f",
+  "originHash" : "ffc6b441c11770f9405c91621a827220947d469ad25e97c8d4e9c975cd8ebb13",
   "pins" : [
-    {
-      "identity" : "ito-runner",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/kunihir0/ito-runner",
-      "state" : {
-        "branch" : "main",
-        "revision" : "d25445451bb1eaf639e8f67eaa211218fe296449"
-      }
-    },
     {
       "identity" : "lrucache",
       "kind" : "remoteSourceControl",
@@ -89,6 +80,15 @@
       "state" : {
         "revision" : "7bba33fa3c2460ff2d150d3e47ae6d6cb1160440",
         "version" : "0.2.0"
+      }
+    },
+    {
+      "identity" : "zipfoundation",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/weichsel/ZIPFoundation.git",
+      "state" : {
+        "revision" : "22787ffb59de99e5dc1fbfe80b19c97a904ad48d",
+        "version" : "0.9.20"
       }
     }
   ],

@@ -12,6 +12,7 @@ struct ItoApp: App {
     var body: some Scene {
         WindowGroup {
             MainTabView()
+                .environmentObject(ReadProgressManager.shared)
         }
     }
 }
