@@ -13,11 +13,14 @@ struct IdentifiableEpisode: Identifiable {
 struct AnimeView: View {
     let runner: ItoRunner
     @State var anime: Anime
+    let pluginId: String
 
     @State private var isLoaded = false
     @State private var errorMessage: String? = nil
     @State private var watchingEpisode: IdentifiableEpisode? = nil
     @State private var selectedSeason: String? = nil
+    
+    @ObservedObject var libraryManager = LibraryManager.shared
 
     var body: some View {
         ScrollView {
@@ -59,15 +62,42 @@ struct AnimeView: View {
                                 .foregroundColor(.secondary)
                         }
 
-                        if let status = statusText(for: anime.status) {
-                            Text(status)
+                        HStack {
+                            if let status = statusText(for: anime.status) {
+                                Text(status)
+                                    .font(.caption)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.secondary.opacity(0.2))
+                                    .cornerRadius(4)
+                            }
+                            
+                            Text(pluginId.capitalized)
                                 .font(.caption)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color.blue.opacity(0.1))
-                                .foregroundColor(.blue)
+                                .background(Color.secondary.opacity(0.2))
                                 .cornerRadius(4)
                         }
+
+                        // Action Buttons
+                        HStack {
+                            Button(action: {
+                                LibraryManager.shared.toggleSaveAnime(anime: anime, pluginId: pluginId)
+                            }) {
+                                HStack {
+                                    Image(systemName: libraryManager.isSaved(id: anime.key) ? "bookmark.fill" : "bookmark")
+                                    Text(libraryManager.isSaved(id: anime.key) ? "Saved" : "Save")
+                                }
+                                .font(.subheadline)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.blue.opacity(0.2))
+                                .foregroundColor(.blue)
+                                .cornerRadius(6)
+                            }
+                        }
+                        .padding(.top, 4)
                     }
                 }
                 .padding(.horizontal)

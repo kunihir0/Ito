@@ -13,12 +13,14 @@ struct IdentifiableChapter: Identifiable {
 struct MangaView: View {
     let runner: ItoRunner
     @State var manga: Manga
+    let pluginId: String
 
     @State private var isLoaded = false
     @State private var errorMessage: String? = nil
     @State private var readingChapter: IdentifiableChapter? = nil
 
     @EnvironmentObject var progressManager: ReadProgressManager
+    @ObservedObject var libraryManager = LibraryManager.shared
 
     var body: some View {
         ScrollView {
@@ -64,15 +66,43 @@ struct MangaView: View {
                                 .foregroundColor(.secondary)
                         }
 
-                        if let status = statusText(for: manga.status) {
-                            Text(status)
+                        HStack {
+                            if let status = statusText(for: manga.status) {
+                                Text(status)
+                                    .font(.caption)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.blue.opacity(0.1))
+                                    .foregroundColor(.blue)
+                                    .cornerRadius(4)
+                            }
+                            
+                            Text(pluginId.capitalized)
                                 .font(.caption)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color.blue.opacity(0.1))
-                                .foregroundColor(.blue)
+                                .background(Color.secondary.opacity(0.2))
                                 .cornerRadius(4)
                         }
+                        
+                        // Action Buttons
+                        HStack {
+                            Button(action: {
+                                LibraryManager.shared.toggleSaveManga(manga: manga, pluginId: pluginId)
+                            }) {
+                                HStack {
+                                    Image(systemName: libraryManager.isSaved(id: manga.key) ? "bookmark.fill" : "bookmark")
+                                    Text(libraryManager.isSaved(id: manga.key) ? "Saved" : "Save")
+                                }
+                                .font(.subheadline)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.blue.opacity(0.2))
+                                .foregroundColor(.blue)
+                                .cornerRadius(6)
+                            }
+                        }
+                        .padding(.top, 4)
                     }
                 }
                 .padding(.horizontal)

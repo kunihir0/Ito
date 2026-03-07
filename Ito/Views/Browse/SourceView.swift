@@ -24,7 +24,7 @@ struct SourceView: View {
                     List(animes, id: \.key) { anime in
                         ZStack {
                             if let runner = self.runner {
-                                NavigationLink(destination: AnimeView(runner: runner, anime: anime))
+                                NavigationLink(destination: AnimeView(runner: runner, anime: anime, pluginId: plugin.url.deletingPathExtension().lastPathComponent))
                                 {
                                     EmptyView()
                                 }
@@ -83,7 +83,7 @@ struct SourceView: View {
                     List(mangas, id: \.key) { manga in
                         ZStack {
                             if let runner = self.runner {
-                                NavigationLink(destination: MangaView(runner: runner, manga: manga))
+                                NavigationLink(destination: MangaView(runner: runner, manga: manga, pluginId: plugin.url.deletingPathExtension().lastPathComponent))
                                 {
                                     EmptyView()
                                 }
