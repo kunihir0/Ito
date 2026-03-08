@@ -32,6 +32,13 @@ public class LibraryManager: ObservableObject {
         return items.contains(where: { $0.id == id })
     }
     
+    public func removeItem(withId id: String) {
+        if let index = items.firstIndex(where: { $0.id == id }) {
+            items.remove(at: index)
+            saveLibrary()
+        }
+    }
+    
     public func toggleSaveManga(manga: Manga, pluginId: String) {
         if isSaved(id: manga.key) {
             items.removeAll(where: { $0.id == manga.key })

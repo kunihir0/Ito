@@ -79,6 +79,13 @@ struct LibraryItemView: View {
                     }
             }
         }
+        .contextMenu {
+            Button(role: .destructive, action: {
+                LibraryManager.shared.removeItem(withId: item.id)
+            }) {
+                Label("Remove from Library", systemImage: "trash")
+            }
+        }
         .onAppear {
             if runner == nil {
                 Task {
