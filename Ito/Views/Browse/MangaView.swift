@@ -254,13 +254,23 @@ struct MangaView: View {
                                                 .padding(6)
                                                 .background(Color.yellow.opacity(0.2))
                                                 .clipShape(Circle())
+                                        } else if isRead {
+                                            Image(systemName: "checkmark.circle")
+                                                .foregroundColor(.secondary)
+                                        } else if let scanlator = chapter.scanlator {
+                                            Text(scanlator)
+                                                .font(.caption2)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Color.secondary.opacity(0.2))
+                                                .cornerRadius(4)
                                         }
                                     }
                                     .padding()
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .background(Color(.systemBackground))
                                     // Slight dimming for the entire row if read
-                                    .opacity(isRead ? 0.7 : 1.0)
+                                    .opacity(isRead ? 0.6 : 1.0)
                                 }
                                 .buttonStyle(.plain)
 

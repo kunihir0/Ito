@@ -55,8 +55,13 @@ public class ReadProgressManager: ObservableObject {
 
         saveProgress()
     }
+    
+    /// Mark an episode as watched (reusing the same structure as chapters)
+    public func markAsWatched(animeId: String, episodeId: String) {
+        markAsRead(mangaId: animeId, chapterId: episodeId)
+    }
 
-    /// Check if a chapter is read
+    /// Check if a chapter/episode is read/watched
     public func isRead(mangaId: String, chapterId: String) -> Bool {
         return readChapters[mangaId]?.contains(chapterId) ?? false
     }

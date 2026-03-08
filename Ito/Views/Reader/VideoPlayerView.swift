@@ -423,6 +423,11 @@ struct VideoPlayerView: View {
             if currentTime / duration >= 0.8 {
                 hasTrackedProgress = true
                 
+                // Mark as watched locally immediately
+                Task { @MainActor in
+                    ReadProgressManager.shared.markAsWatched(animeId: anime.key, episodeId: episode.key)
+                }
+                
                 // Parse episode number
                 if let numStr = episode.title?.components(separatedBy: CharacterSet.decimalDigits.inverted).joined(), let num = Int(numStr) {
                     Task {

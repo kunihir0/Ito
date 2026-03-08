@@ -25,6 +25,7 @@ struct AnimeView: View {
     @State private var trackingMedia: AnilistMedia? = nil
     
     @ObservedObject var libraryManager = LibraryManager.shared
+    @EnvironmentObject var progressManager: ReadProgressManager
 
     var body: some View {
         ScrollView {
@@ -190,6 +191,8 @@ struct AnimeView: View {
                     if let episodes = anime.episodes, !episodes.isEmpty {
                         LazyVStack(spacing: 0) {
                             ForEach(episodes, id: \.key) { episode in
+                                let isWatched = progressManager.isRead(mangaId: anime.key, chapterId: episode.key)
+                                
                                 Button(action: {
                                     self.watchingEpisode = IdentifiableEpisode(episode)
                                 }) {
@@ -197,7 +200,8 @@ struct AnimeView: View {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(episodeTitle(for: episode))
                                                 .font(.headline)
-                                                .foregroundColor(.primary)
+                                                .fontWeight(isWatched ? .regular : .semibold)
+                                                .foregroundColor(isWatched ? .secondary : .primary)
 
                                             if let date = episode.dateUpdated {
                                                 Text(formatDate(date))
@@ -208,7 +212,11 @@ struct AnimeView: View {
 
                                         Spacer()
 
-                                        if let lang = episode.lang {
+                                        if isWatched {
+                                            Image(systemName: "checkmark.circle")
+                                                .foregroundColor(.secondary)
+                                                .padding(.trailing, 4)
+                                        } else if let lang = episode.lang {
                                             Text(lang)
                                                 .font(.caption2)
                                                 .padding(.horizontal, 6)
@@ -219,11 +227,12 @@ struct AnimeView: View {
 
                                         Image(systemName: "play.circle")
                                             .font(.title2)
-                                            .foregroundColor(.blue)
+                                            .foregroundColor(isWatched ? .secondary : .blue)
                                     }
                                     .padding(.vertical, 12)
                                     .padding(.horizontal)
                                     .contentShape(Rectangle())
+                                    .opacity(isWatched ? 0.6 : 1.0)
                                 }
                                 .buttonStyle(PlainButtonStyle())
 
