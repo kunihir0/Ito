@@ -12,6 +12,9 @@ public struct LibraryItem: Codable, Identifiable, Hashable {
     
     // We store the raw payload so we can easily instantiate an Anime/Manga object when the user clicks it.
     public let rawPayload: Data
+    
+    // AniList Tracker Mapping
+    public var anilistId: Int?
 }
 
 public class LibraryManager: ObservableObject {
@@ -34,7 +37,7 @@ public class LibraryManager: ObservableObject {
             items.removeAll(where: { $0.id == manga.key })
         } else {
             if let payload = try? JSONEncoder().encode(manga) {
-                let item = LibraryItem(id: manga.key, title: manga.title, coverUrl: manga.cover, pluginId: pluginId, isAnime: false, rawPayload: payload)
+                let item = LibraryItem(id: manga.key, title: manga.title, coverUrl: manga.cover, pluginId: pluginId, isAnime: false, rawPayload: payload, anilistId: nil)
                 items.append(item)
             }
         }
@@ -46,11 +49,33 @@ public class LibraryManager: ObservableObject {
             items.removeAll(where: { $0.id == anime.key })
         } else {
             if let payload = try? JSONEncoder().encode(anime) {
-                let item = LibraryItem(id: anime.key, title: anime.title, coverUrl: anime.cover, pluginId: pluginId, isAnime: true, rawPayload: payload)
+                let item = LibraryItem(id: anime.key, title: anime.title, coverUrl: anime.cover, pluginId: pluginId, isAnime: true, rawPayload: payload, anilistId: nil)
                 items.append(item)
             }
         }
         saveLibrary()
+    }
+    
+    public func setAnilistId(for itemId: String, anilistId: Int) {
+        if let index = items.firstIndex(where: { $0.id == itemId }) {
+            var updatedItem = items[index]
+            updatedItem.anilistId = anilistId
+            items[index] = updatedItem
+            saveLibrary()
+        }
+    }
+    
+    public func removeAnilistId(for itemId: String) {
+        if let index = items.firstIndex(where: { $0.id == itemId }) {
+            var updatedItem = items[index]
+            updatedItem.anilistId = nil
+            items[index] = updatedItem
+            saveLibrary()
+        }
+    }
+    
+    public func getAnilistId(for itemId: String) -> Int? {
+        return items.first(where: { $0.id == itemId })?.anilistId
     }
     
     private func loadLibrary() {

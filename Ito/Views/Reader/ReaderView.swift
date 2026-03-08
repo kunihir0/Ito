@@ -349,6 +349,32 @@ struct ReaderView: View {
                 self.pages = pageResult.sorted(by: { $0.index < $1.index })
                 self.isLoaded = true
                 self.progressManager.markAsRead(mangaId: manga.key, chapterId: currentChapter.key)
+                
+                // Track progress
+                if TrackerManager.shared.isAnilistAuthenticated {
+                    Task {
+                        // Extract chapter number
+                        let titleOrFallback = currentChapter.title ?? currentChapter.key
+                        let numbers = titleOrFallback.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
+                        if let chapNum = Int(numbers) {
+                            do {
+                                if let mediaId = try await TrackerManager.shared.searchAnilistMedia(title: manga.title, isAnime: false) {
+                                    try await TrackerManager.shared.updateProgress(mediaId: mediaId, progress: chapNum)
+                                }
+                            } catch {
+                                print("📖 [DEBUG-TRACKER] Failed to update progress: \(error)")
+                            }
+                        } else if let num = currentChapter.chapter {
+                            do {
+                                if let mediaId = try await TrackerManager.shared.searchAnilistMedia(title: manga.title, isAnime: false) {
+                                    try await TrackerManager.shared.updateProgress(mediaId: mediaId, progress: Int(num))
+                                }
+                            } catch {
+                                print("📖 [DEBUG-TRACKER] Failed to update progress: \(error)")
+                            }
+                        }
+                    }
+                }
             }
         } catch {
             await MainActor.run {

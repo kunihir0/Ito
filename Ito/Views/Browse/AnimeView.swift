@@ -20,6 +20,10 @@ struct AnimeView: View {
     @State private var watchingEpisode: IdentifiableEpisode? = nil
     @State private var selectedSeason: String? = nil
     
+    @State private var showTrackerSearch = false
+    @State private var showTrackerEdit = false
+    @State private var trackingMedia: AnilistMedia? = nil
+    
     @ObservedObject var libraryManager = LibraryManager.shared
 
     var body: some View {
@@ -81,7 +85,7 @@ struct AnimeView: View {
                         }
 
                         // Action Buttons
-                        HStack {
+                        HStack(spacing: 12) {
                             Button(action: {
                                 LibraryManager.shared.toggleSaveAnime(anime: anime, pluginId: pluginId)
                             }) {
@@ -96,11 +100,48 @@ struct AnimeView: View {
                                 .foregroundColor(.blue)
                                 .cornerRadius(6)
                             }
+
+                            // Tracker Sync Button
+                            if TrackerManager.shared.isAnilistAuthenticated {
+                                Button(action: {
+                                    if let existingId = LibraryManager.shared.getAnilistId(for: anime.key) {
+                                        // Construct a partial AnilistMedia object since we only need the ID to fetch details
+                                        self.trackingMedia = AnilistMedia(id: existingId, title: anime.title, titleRomaji: nil, coverImage: anime.cover, format: "TV", episodes: nil, chapters: nil)
+                                    } else {
+                                        showTrackerSearch = true
+                                    }
+                                }) {
+                                    HStack {
+                                        Image(systemName: LibraryManager.shared.getAnilistId(for: anime.key) != nil ? "checkmark.circle.fill" : "arrow.triangle.2.circlepath")
+                                        Text(LibraryManager.shared.getAnilistId(for: anime.key) != nil ? "Tracking" : "Track")
+                                    }
+                                    .font(.subheadline)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(LibraryManager.shared.getAnilistId(for: anime.key) != nil ? Color.purple.opacity(0.2) : Color.green.opacity(0.2))
+                                    .foregroundColor(LibraryManager.shared.getAnilistId(for: anime.key) != nil ? .purple : .green)
+                                    .cornerRadius(6)
+                                }
+                            }
                         }
                         .padding(.top, 4)
                     }
                 }
                 .padding(.horizontal)
+                .sheet(isPresented: $showTrackerSearch) {
+                    TrackerSearchSheet(title: anime.title, isAnime: true) { media in
+                        print("Tracked: \(media.title) (ID: \(media.id))")
+                        LibraryManager.shared.setAnilistId(for: anime.key, anilistId: media.id)
+                    }
+                }
+                .sheet(item: $trackingMedia) { media in
+                    TrackerDetailsSheet(media: media, onSave: {
+                        // Refresh UI if needed
+                    }, onDelete: {
+                        // We use 0 to indicate removal for now, or we update LibraryManager to accept nil
+                        LibraryManager.shared.removeAnilistId(for: anime.key)
+                    })
+                }
 
                 // Tags
                 if let tags = anime.tags, !tags.isEmpty {

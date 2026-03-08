@@ -93,6 +93,236 @@ public class TrackerManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: usernameKey)
     }
     
+    // MARK: - API Calls
+    
+    /// Searches AniList for a matching Media ID based on title and type
+    public func searchAnilistMedia(title: String, isAnime: Bool) async throws -> Int? {
+        guard let token = anilistToken else { throw URLError(.userAuthenticationRequired) }
+        
+        let type = isAnime ? "ANIME" : "MANGA"
+        let query = """
+        query ($search: String, $type: MediaType) {
+            Page(page: 1, perPage: 1) {
+                media(search: $search, type: $type, sort: POPULARITY_DESC) {
+                    id
+                }
+            }
+        }
+        """
+        
+        let variables: [String: Any] = [
+            "search": title,
+            "type": type
+        ]
+        
+        let body: [String: Any] = ["query": query, "variables": variables]
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+        
+        var request = URLRequest(url: URL(string: "https://graphql.anilist.co")!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = jsonData
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 429 {
+            print("AniList API Rate Limited!")
+            throw URLError(.backgroundSessionInUseByAnotherProcess)
+        }
+        
+        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let dataDict = json["data"] as? [String: Any],
+           let page = dataDict["Page"] as? [String: Any],
+           let mediaList = page["media"] as? [[String: Any]],
+           let firstMedia = mediaList.first,
+           let id = firstMedia["id"] as? Int {
+            return id
+        }
+        
+        return nil
+    }
+    
+    public func searchAnilistMediaFull(title: String, isAnime: Bool) async throws -> [AnilistMedia] {
+        guard let token = anilistToken else { throw URLError(.userAuthenticationRequired) }
+        
+        let type = isAnime ? "ANIME" : "MANGA"
+        let query = """
+        query ($search: String, $type: MediaType) {
+            Page(page: 1, perPage: 5) {
+                media(search: $search, type: $type, sort: SEARCH_MATCH) {
+                    id
+                    title {
+                        romaji
+                        english
+                        native
+                    }
+                    coverImage {
+                        large
+                    }
+                    format
+                    episodes
+                    chapters
+                }
+            }
+        }
+        """
+        
+        let variables: [String: Any] = [
+            "search": title,
+            "type": type
+        ]
+        
+        let body: [String: Any] = ["query": query, "variables": variables]
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+        
+        var request = URLRequest(url: URL(string: "https://graphql.anilist.co")!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = jsonData
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 429 {
+            print("AniList API Rate Limited!")
+            throw URLError(.backgroundSessionInUseByAnotherProcess)
+        }
+        
+        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let dataDict = json["data"] as? [String: Any],
+           let page = dataDict["Page"] as? [String: Any],
+           let mediaList = page["media"] as? [[String: Any]] {
+            
+            return mediaList.compactMap { dict -> AnilistMedia? in
+                guard let id = dict["id"] as? Int,
+                      let titleObj = dict["title"] as? [String: String?] else { return nil }
+                
+                let romaji = titleObj["romaji"] ?? ""
+                let english = titleObj["english"] ?? ""
+                let native = titleObj["native"] ?? ""
+                
+                // Prioritize English, then Romaji, then Native
+                let title = english ?? romaji ?? native ?? "Unknown Title"
+                
+                let coverObj = dict["coverImage"] as? [String: String]
+                let cover = coverObj?["large"]
+                
+                let format = dict["format"] as? String
+                let episodes = dict["episodes"] as? Int
+                let chapters = dict["chapters"] as? Int
+                
+                return AnilistMedia(id: id, title: title, titleRomaji: romaji, coverImage: cover, format: format, episodes: episodes, chapters: chapters)
+            }
+        }
+        
+        return []
+    }
+    
+    /// Updates the user's progress on a given AniList mediaId
+    public func updateProgress(mediaId: Int, progress: Int) async throws {
+        guard let token = anilistToken else { throw URLError(.userAuthenticationRequired) }
+        
+        let mutation = """
+        mutation ($mediaId: Int, $progress: Int) {
+            SaveMediaListEntry(mediaId: $mediaId, progress: $progress) {
+                id
+                progress
+            }
+        }
+        """
+        
+        let variables: [String: Any] = [
+            "mediaId": mediaId,
+            "progress": progress
+        ]
+        
+        let body: [String: Any] = ["query": mutation, "variables": variables]
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+        
+        var request = URLRequest(url: URL(string: "https://graphql.anilist.co")!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = jsonData
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            if httpResponse.statusCode == 429 {
+                print("AniList API Rate Limited!")
+                throw URLError(.backgroundSessionInUseByAnotherProcess)
+            } else if httpResponse.statusCode != 200 {
+                print("AniList Update Failed with status: \(httpResponse.statusCode)")
+                throw URLError(.badServerResponse)
+            } else {
+                print("AniList Update Successful: MediaID \(mediaId) -> Progress \(progress)")
+            }
+        }
+    }
+    
+    public func getMediaListEntry(mediaId: Int) async throws -> [String: Any]? {
+        guard let token = anilistToken else { throw URLError(.userAuthenticationRequired) }
+        guard let username = anilistUsername else {
+            // If we don't have the username yet, we can try to fetch the viewer ID first or just return nil for now.
+            // Ideally ensure username is fetched upon login.
+            return nil
+        }
+        
+        let query = """
+        query ($mediaId: Int, $userName: String) {
+            MediaList(mediaId: $mediaId, userName: $userName) {
+                status
+                progress
+                score
+                startedAt {
+                    year
+                    month
+                    day
+                }
+                completedAt {
+                    year
+                    month
+                    day
+                }
+            }
+        }
+        """
+        
+        let variables: [String: Any] = [
+            "mediaId": mediaId,
+            "userName": username
+        ]
+        
+        let body: [String: Any] = ["query": query, "variables": variables]
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+        
+        var request = URLRequest(url: URL(string: "https://graphql.anilist.co")!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = jsonData
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 429 {
+            print("AniList API Rate Limited!")
+            throw URLError(.backgroundSessionInUseByAnotherProcess)
+        }
+        
+        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let dataDict = json["data"] as? [String: Any],
+           let entry = dataDict["MediaList"] as? [String: Any] {
+            return entry
+        }
+        
+        return nil
+    }
+    
     private func fetchAnilistViewer(token: String) async throws {
         let query = """
         query {

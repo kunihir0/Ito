@@ -415,7 +415,40 @@ struct VideoPlayerView: View {
         return seconds
     }
 
+    @State private var hasTrackedProgress = false
+    
     private func updateSubtitles(for currentTime: Double) {
+        // Track Progress
+        if !hasTrackedProgress, let duration = player?.currentItem?.duration.seconds, duration > 0 {
+            if currentTime / duration >= 0.8 {
+                hasTrackedProgress = true
+                
+                // Parse episode number
+                if let numStr = episode.title?.components(separatedBy: CharacterSet.decimalDigits.inverted).joined(), let num = Int(numStr) {
+                    Task {
+                        do {
+                            // Find Media ID
+                            if let mediaId = try await TrackerManager.shared.searchAnilistMedia(title: anime.title, isAnime: true) {
+                                try await TrackerManager.shared.updateProgress(mediaId: mediaId, progress: num)
+                            }
+                        } catch {
+                            print("🎬 [DEBUG-TRACKER] Failed to update progress: \(error)")
+                        }
+                    }
+                } else if let num = episode.episode {
+                    Task {
+                        do {
+                            if let mediaId = try await TrackerManager.shared.searchAnilistMedia(title: anime.title, isAnime: true) {
+                                try await TrackerManager.shared.updateProgress(mediaId: mediaId, progress: Int(num))
+                            }
+                        } catch {
+                            print("🎬 [DEBUG-TRACKER] Failed to update progress: \(error)")
+                        }
+                    }
+                }
+            }
+        }
+        
         if let current = parsedSubtitles.first(where: { currentTime >= $0.start && currentTime <= $0.end }) {
             if self.currentSubtitleText != current.text {
                 print("🎬 [DEBUG-SUB-TIME] MATCH @ \(currentTime)s: '\(current.text)'")

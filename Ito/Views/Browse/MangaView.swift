@@ -18,6 +18,10 @@ struct MangaView: View {
     @State private var isLoaded = false
     @State private var errorMessage: String? = nil
     @State private var readingChapter: IdentifiableChapter? = nil
+    
+    @State private var showTrackerSearch = false
+    @State private var showTrackerEdit = false
+    @State private var trackingMedia: AnilistMedia? = nil
 
     @EnvironmentObject var progressManager: ReadProgressManager
     @ObservedObject var libraryManager = LibraryManager.shared
@@ -86,7 +90,7 @@ struct MangaView: View {
                         }
                         
                         // Action Buttons
-                        HStack {
+                        HStack(spacing: 12) {
                             Button(action: {
                                 LibraryManager.shared.toggleSaveManga(manga: manga, pluginId: pluginId)
                             }) {
@@ -101,11 +105,47 @@ struct MangaView: View {
                                 .foregroundColor(.blue)
                                 .cornerRadius(6)
                             }
+                            
+                            // Tracker Sync Button
+                            if TrackerManager.shared.isAnilistAuthenticated {
+                                Button(action: {
+                                    if let existingId = LibraryManager.shared.getAnilistId(for: manga.key) {
+                                        // Construct a partial AnilistMedia object
+                                        self.trackingMedia = AnilistMedia(id: existingId, title: manga.title, titleRomaji: nil, coverImage: manga.cover, format: "MANGA", episodes: nil, chapters: nil)
+                                    } else {
+                                        showTrackerSearch = true
+                                    }
+                                }) {
+                                    HStack {
+                                        Image(systemName: LibraryManager.shared.getAnilistId(for: manga.key) != nil ? "checkmark.circle.fill" : "arrow.triangle.2.circlepath")
+                                        Text(LibraryManager.shared.getAnilistId(for: manga.key) != nil ? "Tracking" : "Track")
+                                    }
+                                    .font(.subheadline)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(LibraryManager.shared.getAnilistId(for: manga.key) != nil ? Color.purple.opacity(0.2) : Color.green.opacity(0.2))
+                                    .foregroundColor(LibraryManager.shared.getAnilistId(for: manga.key) != nil ? .purple : .green)
+                                    .cornerRadius(6)
+                                }
+                            }
                         }
                         .padding(.top, 4)
                     }
                 }
                 .padding(.horizontal)
+                .sheet(isPresented: $showTrackerSearch) {
+                    TrackerSearchSheet(title: manga.title, isAnime: false) { media in
+                        print("Tracked: \(media.title) (ID: \(media.id))")
+                        LibraryManager.shared.setAnilistId(for: manga.key, anilistId: media.id)
+                    }
+                }
+                .sheet(item: $trackingMedia) { media in
+                    TrackerDetailsSheet(media: media, onSave: {
+                        // Refresh
+                    }, onDelete: {
+                        LibraryManager.shared.removeAnilistId(for: manga.key)
+                    })
+                }
 
                 // Tags
                 if let tags = manga.tags, !tags.isEmpty {
