@@ -91,7 +91,7 @@ struct TrackerSearchSheet: View {
                 }
                 
                 Button(action: {
-                    if let media = selectedMedia {
+                    if selectedMedia != nil {
                         // Launch details sheet
                         showDetailsSheet = true
                     }

@@ -5,7 +5,7 @@ struct SettingsView: View {
         NavigationView {
             List {
                 Section(header: Text("General")) {
-                    NavigationLink(destination: Text("Appearance Settings View")) {
+                    NavigationLink(destination: AppearanceSettingsView()) {
                         Label("Appearance", systemImage: "paintpalette")
                     }
                     NavigationLink(destination: Text("Reader Settings View")) {
