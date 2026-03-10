@@ -9,17 +9,17 @@ public struct LibraryItem: Codable, Identifiable, Hashable {
     public let coverUrl: String?
     public let pluginId: String
     public let isAnime: Bool
-    
+
     // We store the raw payload so we can easily instantiate an Anime/Manga object when the user clicks it.
     public let rawPayload: Data
-    
+
     // AniList Tracker Mapping
     public var anilistId: Int?
-    
+
     public static func == (lhs: LibraryItem, rhs: LibraryItem) -> Bool {
         return lhs.id == rhs.id && lhs.anilistId == rhs.anilistId
     }
-    
+
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(anilistId)
@@ -28,26 +28,26 @@ public struct LibraryItem: Codable, Identifiable, Hashable {
 
 public class LibraryManager: ObservableObject {
     public static let shared = LibraryManager()
-    
+
     @Published public private(set) var items: [LibraryItem] = []
-    
+
     private let defaultsKey = "ito_library_items"
-    
+
     private init() {
         loadLibrary()
     }
-    
+
     public func isSaved(id: String) -> Bool {
         return items.contains(where: { $0.id == id })
     }
-    
+
     public func removeItem(withId id: String) {
         if let index = items.firstIndex(where: { $0.id == id }) {
             items.remove(at: index)
             saveLibrary()
         }
     }
-    
+
     public func toggleSaveManga(manga: Manga, pluginId: String) {
         if isSaved(id: manga.key) {
             items.removeAll(where: { $0.id == manga.key })
@@ -59,7 +59,7 @@ public class LibraryManager: ObservableObject {
         }
         saveLibrary()
     }
-    
+
     public func toggleSaveAnime(anime: Anime, pluginId: String) {
         if isSaved(id: anime.key) {
             items.removeAll(where: { $0.id == anime.key })
@@ -71,7 +71,7 @@ public class LibraryManager: ObservableObject {
         }
         saveLibrary()
     }
-    
+
     public func setAnilistId(for itemId: String, anilistId: Int) {
         if let index = items.firstIndex(where: { $0.id == itemId }) {
             var updatedItem = items[index]
@@ -80,7 +80,7 @@ public class LibraryManager: ObservableObject {
             saveLibrary()
         }
     }
-    
+
     public func removeAnilistId(for itemId: String) {
         if let index = items.firstIndex(where: { $0.id == itemId }) {
             var updatedItem = items[index]
@@ -89,11 +89,11 @@ public class LibraryManager: ObservableObject {
             saveLibrary()
         }
     }
-    
+
     public func getAnilistId(for itemId: String) -> Int? {
         return items.first(where: { $0.id == itemId })?.anilistId
     }
-    
+
     private func loadLibrary() {
         if let data = UserDefaults.standard.data(forKey: defaultsKey) {
             if let decoded = try? JSONDecoder().decode([LibraryItem].self, from: data) {
@@ -101,7 +101,7 @@ public class LibraryManager: ObservableObject {
             }
         }
     }
-    
+
     private func saveLibrary() {
         if let data = try? JSONEncoder().encode(items) {
             UserDefaults.standard.set(data, forKey: defaultsKey)

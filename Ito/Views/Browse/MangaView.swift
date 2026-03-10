@@ -18,12 +18,12 @@ struct MangaView: View {
     let pluginId: String
 
     @State private var isLoaded = false
-    @State private var errorMessage: String? = nil
-    @State private var readingChapter: IdentifiableChapter? = nil
-    
+    @State private var errorMessage: String?
+    @State private var readingChapter: IdentifiableChapter?
+
     @State private var showTrackerSearch = false
     @State private var showTrackerEdit = false
-    @State private var trackingMedia: AnilistMedia? = nil
+    @State private var trackingMedia: AnilistMedia?
 
     @EnvironmentObject var progressManager: ReadProgressManager
     @ObservedObject var libraryManager = LibraryManager.shared
@@ -80,7 +80,7 @@ struct MangaView: View {
                                     .foregroundColor(.blue)
                                     .cornerRadius(4)
                             }
-                            
+
                             Text(pluginId.capitalized)
                                 .font(.caption)
                                 .padding(.horizontal, 8)
@@ -88,7 +88,7 @@ struct MangaView: View {
                                 .background(Color.secondary.opacity(0.2))
                                 .cornerRadius(4)
                         }
-                        
+
                         // Action Buttons
                         HStack(spacing: 12) {
                             Button(action: {
@@ -105,7 +105,7 @@ struct MangaView: View {
                                 .foregroundColor(.blue)
                                 .cornerRadius(6)
                             }
-                            
+
                             // Tracker Sync Button
                             if TrackerManager.shared.isAnilistAuthenticated {
                                 Button(action: {
@@ -243,7 +243,7 @@ struct MangaView: View {
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
                                                 }
-                                                
+
                                                 if let scanlator = chapter.scanlator {
                                                     Text("•")
                                                         .font(.caption)
@@ -322,8 +322,7 @@ struct MangaView: View {
 
         // If we have a last read chapter, try to find it
         if let lastReadId = progressManager.getLastRead(mangaId: manga.key),
-            let lastRead = chapters.first(where: { $0.key == lastReadId })
-        {
+            let lastRead = chapters.first(where: { $0.key == lastReadId }) {
             return lastRead
         }
 

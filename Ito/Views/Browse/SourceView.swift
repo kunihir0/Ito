@@ -10,10 +10,10 @@ struct SourceView: View {
     @State private var mangas: [Manga] = []
     @State private var animes: [Anime] = []
     @State private var isLoaded = false
-    @State private var errorMessage: String? = nil
-    
+    @State private var errorMessage: String?
+
     @State private var searchQuery: String = ""
-    @State private var searchTask: Task<Void, Never>? = nil
+    @State private var searchTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -26,8 +26,7 @@ struct SourceView: View {
                     List(animes, id: \.key) { anime in
                         ZStack {
                             if let runner = self.runner {
-                                NavigationLink(destination: AnimeView(runner: runner, anime: anime, pluginId: plugin.url.deletingPathExtension().lastPathComponent))
-                                {
+                                NavigationLink(destination: AnimeView(runner: runner, anime: anime, pluginId: plugin.url.deletingPathExtension().lastPathComponent)) {
                                     EmptyView()
                                 }
                                 .opacity(0)
@@ -83,8 +82,7 @@ struct SourceView: View {
                     List(mangas, id: \.key) { manga in
                         ZStack {
                             if let runner = self.runner {
-                                NavigationLink(destination: MangaView(runner: runner, manga: manga, pluginId: plugin.url.deletingPathExtension().lastPathComponent))
-                                {
+                                NavigationLink(destination: MangaView(runner: runner, manga: manga, pluginId: plugin.url.deletingPathExtension().lastPathComponent)) {
                                     EmptyView()
                                 }
                                 .opacity(0)
@@ -152,7 +150,7 @@ struct SourceView: View {
 
     private func performSearch(query: String) {
         searchTask?.cancel()
-        
+
         guard !query.isEmpty else {
             // Re-load default popular listing if search is cleared
             Task { await loadPlugin() }

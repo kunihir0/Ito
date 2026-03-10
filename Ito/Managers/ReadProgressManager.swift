@@ -9,7 +9,7 @@ public class ReadProgressManager: ObservableObject {
 
     // keys: manga ID, values: set of chapter IDs
     @Published public private(set) var readChapters: [String: Set<String>] = [:]
-    
+
     // keys: manga ID, values: set of read chapter numbers
     @Published public private(set) var readChapterNumbers: [String: Set<Float>] = [:]
 
@@ -27,20 +27,17 @@ public class ReadProgressManager: ObservableObject {
     private func loadProgress() {
         let defaults = UserDefaults.standard
         if let data = defaults.data(forKey: readChaptersKey),
-            let decoded = try? JSONDecoder().decode([String: Set<String>].self, from: data)
-        {
+            let decoded = try? JSONDecoder().decode([String: Set<String>].self, from: data) {
             self.readChapters = decoded
         }
-        
+
         if let data = defaults.data(forKey: readChapterNumbersKey),
-            let decoded = try? JSONDecoder().decode([String: Set<Float>].self, from: data)
-        {
+            let decoded = try? JSONDecoder().decode([String: Set<Float>].self, from: data) {
             self.readChapterNumbers = decoded
         }
 
         if let data = defaults.data(forKey: lastReadChapterKey),
-            let decoded = try? JSONDecoder().decode([String: String].self, from: data)
-        {
+            let decoded = try? JSONDecoder().decode([String: String].self, from: data) {
             self.lastReadChapter = decoded
         }
     }
@@ -64,19 +61,19 @@ public class ReadProgressManager: ObservableObject {
             readChapters[mangaId] = []
         }
         readChapters[mangaId]?.insert(chapterId)
-        
+
         if let num = chapterNum {
             if readChapterNumbers[mangaId] == nil {
                 readChapterNumbers[mangaId] = []
             }
             readChapterNumbers[mangaId]?.insert(num)
         }
-        
+
         lastReadChapter[mangaId] = chapterId
 
         saveProgress()
     }
-    
+
     /// Mark an episode as watched (reusing the same structure as chapters)
     public func markAsWatched(animeId: String, episodeId: String, episodeNum: Float? = nil) {
         markAsRead(mangaId: animeId, chapterId: episodeId, chapterNum: episodeNum)

@@ -3,8 +3,8 @@ import SwiftUI
 struct TrackerSettingsView: View {
     @StateObject private var trackerManager = TrackerManager.shared
     @State private var isAuthenticating = false
-    @State private var authError: String? = nil
-    
+    @State private var authError: String?
+
     var body: some View {
         List {
             Section(header: Text("AniList"), footer: Text("Sync your progress automatically with AniList.")) {
@@ -19,7 +19,7 @@ struct TrackerSettingsView: View {
                         }
                         Spacer()
                     }
-                    
+
                     Button(action: {
                         trackerManager.logoutAnilist()
                     }) {
@@ -41,7 +41,7 @@ struct TrackerSettingsView: View {
                     }
                     .disabled(isAuthenticating)
                 }
-                
+
                 if let error = authError {
                     Text(error)
                         .font(.caption)
@@ -52,11 +52,11 @@ struct TrackerSettingsView: View {
         .navigationTitle("Trackers")
         .navigationBarTitleDisplayMode(.inline)
     }
-    
+
     private func authenticate() {
         isAuthenticating = true
         authError = nil
-        
+
         Task {
             do {
                 try await trackerManager.authenticateWithAnilist()

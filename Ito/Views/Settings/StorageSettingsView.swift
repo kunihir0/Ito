@@ -2,7 +2,7 @@ import SwiftUI
 
 struct StorageSettingsView: View {
     @StateObject private var storageManager = StorageManager.shared
-    
+
     var body: some View {
         Form {
             Section(
@@ -15,14 +15,14 @@ struct StorageSettingsView: View {
                     }
                 }
                 .pickerStyle(.wheel)
-                
+
                 HStack {
                     Text("Current Usage")
                     Spacer()
                     Text(storageManager.formatBytes(storageManager.currentCacheSizeBytes))
                         .foregroundColor(.secondary)
                 }
-                
+
                 Button(action: {
                     storageManager.clearCache()
                 }) {

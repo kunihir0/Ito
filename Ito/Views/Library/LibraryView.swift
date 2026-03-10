@@ -5,11 +5,11 @@ import ito_runner
 
 struct LibraryView: View {
     @StateObject private var libraryManager = LibraryManager.shared
-    
+
     let columns = [
         GridItem(.adaptive(minimum: 120, maximum: 160), spacing: 16)
     ]
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -48,7 +48,7 @@ struct LibraryView: View {
 struct LibraryItemView: View {
     let item: LibraryItem
     @ObservedObject private var pluginManager = PluginManager.shared
-    
+
     var body: some View {
         NavigationLink(destination: DeferredPluginView(item: item)) {
             cardContent
@@ -62,11 +62,11 @@ struct LibraryItemView: View {
             }
         }
     }
-    
+
     private var isPluginInstalled: Bool {
         pluginManager.installedPlugins[item.pluginId] != nil
     }
-    
+
     private var cardContent: some View {
         VStack(alignment: .leading) {
             ZStack(alignment: .topTrailing) {
@@ -93,7 +93,7 @@ struct LibraryItemView: View {
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
                 // Type badge only
                 Text(item.isAnime ? "Anime" : "Manga")
                     .font(.caption2)
@@ -104,7 +104,7 @@ struct LibraryItemView: View {
                     .foregroundColor(.white)
                     .cornerRadius(4)
                     .padding(4)
-                
+
                 if !isPluginInstalled {
                     ZStack {
                         Color.black.opacity(0.6)
@@ -117,7 +117,7 @@ struct LibraryItemView: View {
             .frame(height: 150)
             .cornerRadius(8)
             .clipped()
-            
+
             Text(item.title)
                 .font(.caption)
                 .fontWeight(.medium)
@@ -130,12 +130,12 @@ struct LibraryItemView: View {
 
 struct DeferredPluginView: View {
     let item: LibraryItem
-    @State private var runner: ItoRunner? = nil
-    @State private var errorMessage: String? = nil
-    
+    @State private var runner: ItoRunner?
+    @State private var errorMessage: String?
+
     // Decoded instances
-    @State private var decodedAnime: Anime? = nil
-    @State private var decodedManga: Manga? = nil
+    @State private var decodedAnime: Anime?
+    @State private var decodedManga: Manga?
 
     var body: some View {
         Group {
@@ -174,7 +174,7 @@ struct DeferredPluginView: View {
             print("⏹️ [DEBUG-UI] DeferredPluginView.onDisappear for item: \(item.title)")
         }
     }
-    
+
     private func loadRunnerAndItem() async {
         do {
             if item.isAnime {
@@ -182,7 +182,7 @@ struct DeferredPluginView: View {
             } else {
                 self.decodedManga = try JSONDecoder().decode(Manga.self, from: item.rawPayload)
             }
-            
+
             let pluginRunner = try await PluginManager.shared.getRunner(for: item.pluginId)
             await MainActor.run {
                 self.runner = pluginRunner

@@ -9,13 +9,13 @@ struct VideoPlayerView: View {
 
     @State private var videos: [Anime.Video] = []
     @State private var isLoaded = false
-    @State private var errorMessage: String? = nil
+    @State private var errorMessage: String?
 
-    @State private var selectedVideo: Anime.Video? = nil
-    @State private var selectedAudioTrack: Anime.AudioTrack? = nil
-    @State private var selectedSubtitle: Anime.Subtitle? = nil
+    @State private var selectedVideo: Anime.Video?
+    @State private var selectedAudioTrack: Anime.AudioTrack?
+    @State private var selectedSubtitle: Anime.Subtitle?
 
-    @State private var player: AVPlayer? = nil
+    @State private var player: AVPlayer?
 
     @State private var showQualitySelector = false
     @State private var showAudioSelector = false
@@ -25,7 +25,7 @@ struct VideoPlayerView: View {
 
     // Custom Subtitle State
     @State private var parsedSubtitles: [(start: Double, end: Double, text: String)] = []
-    @State private var currentSubtitleText: String? = nil
+    @State private var currentSubtitleText: String?
 
     @Environment(\.dismiss) var dismiss
 
@@ -98,9 +98,9 @@ struct VideoPlayerView: View {
                                         .padding()
                                         .background(Circle().fill(Color.black.opacity(0.01))) // increase tap area
                                 }
-                                
+
                                 Spacer()
-                                
+
                                 if let tracks = video.audioTracks, tracks.count > 1 {
                                     Button(action: { showAudioSelector = true }) {
                                         HStack(spacing: 4) {
@@ -158,7 +158,7 @@ struct VideoPlayerView: View {
             }
         }
         .confirmationDialog("Select Quality", isPresented: $showQualitySelector) {
-            ForEach(Array(videos.enumerated()), id: \.offset) { index, vid in
+            ForEach(Array(videos.enumerated()), id: \.offset) { _, vid in
                 Button(vid.quality) {
                     print("🎬 [DEBUG] Selected new quality: \(vid.quality)")
                     self.selectedVideo = vid
@@ -169,7 +169,7 @@ struct VideoPlayerView: View {
         }
         .confirmationDialog("Select Audio Track", isPresented: $showAudioSelector) {
             if let tracks = selectedVideo?.audioTracks {
-                ForEach(Array(tracks.enumerated()), id: \.offset) { index, track in
+                ForEach(Array(tracks.enumerated()), id: \.offset) { _, track in
                     Button(track.language) {
                         self.selectedAudioTrack = track
                     }
@@ -184,7 +184,7 @@ struct VideoPlayerView: View {
                 self.currentSubtitleText = nil
             }
             if let subs = selectedVideo?.subtitles {
-                ForEach(Array(subs.enumerated()), id: \.offset) { index, sub in
+                ForEach(Array(subs.enumerated()), id: \.offset) { _, sub in
                     let type = sub.isHardsub ? "(Hardsub)" : "(Softsub)"
                     Button("\(sub.language) \(type)") {
                         self.selectedSubtitle = sub
@@ -207,7 +207,7 @@ struct VideoPlayerView: View {
         do {
             print("🎬 [DEBUG] Fetching video list for episode: \(episode.key)")
             let fetchedVideos = try await runner.getVideoList(anime: anime, episode: episode)
-            
+
             await MainActor.run {
                 self.videos = fetchedVideos
                 if let first = fetchedVideos.first {
@@ -216,7 +216,7 @@ struct VideoPlayerView: View {
                     self.selectedAudioTrack = first.audioTracks?.first
                     self.selectedSubtitle =
                         first.subtitles?.first(where: { !$0.isHardsub }) ?? first.subtitles?.first
-                    
+
                     self.setupPlayer(for: first)
                 } else {
                     print("🎬 [DEBUG] Video list returned empty!")
@@ -237,24 +237,24 @@ struct VideoPlayerView: View {
             print("🎬 [DEBUG] Invalid URL string: \(video.url)")
             return
         }
-        
+
         var options: [String: Any] = [:]
-        
+
         if let headers = video.headers, !headers.isEmpty {
             print("🎬 [DEBUG] Injecting AVPlayer Headers from plugin: \(headers)")
             options["AVURLAssetHTTPHeaderFieldsKey"] = headers
-            
+
             Task {
                 await diagnoseStreamBlocked(url: url, headers: headers)
             }
         }
-        
+
         let asset = AVURLAsset(url: url, options: options)
         let playerItem = AVPlayerItem(asset: asset)
-        
+
         if self.player == nil {
             self.player = AVPlayer(playerItem: playerItem)
-            
+
             // Setup periodic time observer for custom subtitles
             self.player?.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { time in
                 self.updateSubtitles(for: time.seconds)
@@ -262,9 +262,9 @@ struct VideoPlayerView: View {
         } else {
             self.player?.replaceCurrentItem(with: playerItem)
         }
-        
+
         self.player?.play()
-        
+
         // If we have selected a subtitle, load it
         if let sub = self.selectedSubtitle {
             Task {
@@ -272,23 +272,23 @@ struct VideoPlayerView: View {
             }
         }
     }
-    
+
     /// Bypasses AVPlayer's black box to see exactly what the server is returning
     private func diagnoseStreamBlocked(url: URL, headers: [String: String]) async {
         print("🕵️‍♂️ [DEBUG-NET] Running diagnostic fetch on: \(url.absoluteString)")
         var request = URLRequest(url: url)
-        
+
         // Apply the exact same headers
         for (key, value) in headers {
             request.setValue(value, forHTTPHeaderField: key)
         }
-        
+
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse {
                 print("🕵️‍♂️ [DEBUG-NET] HTTP Status Code: \(httpResponse.statusCode)")
             }
-            
+
             if let responseString = String(data: data, encoding: .utf8) {
                 print("🕵️‍♂️ [DEBUG-NET] First 500 chars of response payload:")
                 print(String(responseString.prefix(500)))
@@ -303,7 +303,7 @@ struct VideoPlayerView: View {
     private func loadSubtitleFile(_ subtitle: Anime.Subtitle) async {
         guard let url = URL(string: subtitle.url) else { return }
         print("🎬 [DEBUG-SUB] Downloading VTT: \(url)")
-        
+
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
             if let httpResponse = response as? HTTPURLResponse {
@@ -311,7 +311,7 @@ struct VideoPlayerView: View {
             }
             if let vttString = String(data: data, encoding: .utf8) {
                 print("🎬 [DEBUG-SUB] VTT downloaded, first 200 chars: \(String(vttString.prefix(200)))")
-                let parsed = parseVTT(vttString)
+                let parsed = Self.parseVTT(vttString)
                 await MainActor.run {
                     self.parsedSubtitles = parsed
                     print("🎬 [DEBUG-SUB] Successfully parsed \(parsed.count) subtitle blocks.")
@@ -327,107 +327,19 @@ struct VideoPlayerView: View {
         }
     }
 
-    private func parseVTT(_ vtt: String) -> [(start: Double, end: Double, text: String)] {
-        var results: [(start: Double, end: Double, text: String)] = []
-        // Clean out all \r characters before splitting by \n
-        let cleanVtt = vtt.replacingOccurrences(of: "\r", with: "")
-        let lines = cleanVtt.components(separatedBy: "\n")
-        
-        var currentStart: Double = 0
-        var currentEnd: Double = 0
-        var currentText = ""
-        var isReadingText = false
-        
-        for (index, line) in lines.enumerated() {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            
-            // "WEBVTT" header or other metadata can be safely ignored until we find a timestamp
-            if trimmed.contains("-->") {
-                // If we were already reading text and hit another timestamp without a blank line,
-                // save the previous one.
-                if isReadingText {
-                    let cleanedText = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !cleanedText.isEmpty {
-                        results.append((start: currentStart, end: currentEnd, text: cleanedText))
-                    }
-                    currentText = ""
-                }
-
-                let parts = trimmed.components(separatedBy: "-->")
-                if parts.count == 2 {
-                    // Extract just the time string, ignoring extra VTT positioning metadata (like 'line:20%')
-                    let startStr = parts[0].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first ?? ""
-                    let endStr = parts[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first ?? ""
-                    
-                    currentStart = parseVTTTime(startStr)
-                    currentEnd = parseVTTTime(endStr)
-                    isReadingText = true
-                    
-                    if results.count < 3 {
-                        print("🎬 [DEBUG-SUB] Parsed timestamp line \(index): start='\(startStr)' (\(currentStart)s), end='\(endStr)' (\(currentEnd)s)")
-                    }
-                }
-            } else if trimmed.isEmpty {
-                // A blank line signifies the end of a subtitle block
-                if isReadingText {
-                    let cleanedText = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !cleanedText.isEmpty {
-                        results.append((start: currentStart, end: currentEnd, text: cleanedText))
-                    }
-                    currentText = ""
-                    isReadingText = false
-                }
-            } else if isReadingText {
-                // Strip simple HTML tags like <i>, <b>
-                let stripped = trimmed.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
-                if !currentText.isEmpty {
-                    currentText += "\n" + stripped
-                } else {
-                    currentText = stripped
-                }
-            }
-        }
-        
-        // Append last block if EOF reached without newline
-        if isReadingText {
-            let cleanedText = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !cleanedText.isEmpty {
-                results.append((start: currentStart, end: currentEnd, text: cleanedText))
-            }
-        }
-        
-        return results
-    }
-
-    private func parseVTTTime(_ timeStr: String) -> Double {
-        // Formats: "00:01:23.450" or "01:23.450" or "00:01:23,450"
-        let parts = timeStr.components(separatedBy: ":")
-        var seconds: Double = 0
-        
-        if parts.count == 3 {
-            seconds += (Double(parts[0]) ?? 0) * 3600
-            seconds += (Double(parts[1]) ?? 0) * 60
-            seconds += Double(parts[2].replacingOccurrences(of: ",", with: ".")) ?? 0
-        } else if parts.count == 2 {
-            seconds += (Double(parts[0]) ?? 0) * 60
-            seconds += Double(parts[1].replacingOccurrences(of: ",", with: ".")) ?? 0
-        }
-        return seconds
-    }
-
     @State private var hasTrackedProgress = false
-    
+
     private func updateSubtitles(for currentTime: Double) {
         // Track Progress
         if !hasTrackedProgress, let duration = player?.currentItem?.duration.seconds, duration > 0 {
             if currentTime / duration >= 0.8 {
                 hasTrackedProgress = true
-                
+
                 // Mark as watched locally immediately
                 Task { @MainActor in
                     ReadProgressManager.shared.markAsWatched(animeId: anime.key, episodeId: episode.key, episodeNum: episode.episode)
                 }
-                
+
                 // Parse episode number
                 if let numStr = episode.title?.components(separatedBy: CharacterSet.decimalDigits.inverted).joined(), let num = Int(numStr) {
                     Task {
@@ -453,7 +365,7 @@ struct VideoPlayerView: View {
                 }
             }
         }
-        
+
         if let current = parsedSubtitles.first(where: { currentTime >= $0.start && currentTime <= $0.end }) {
             if self.currentSubtitleText != current.text {
                 print("🎬 [DEBUG-SUB-TIME] MATCH @ \(currentTime)s: '\(current.text)'")
@@ -465,5 +377,95 @@ struct VideoPlayerView: View {
                 self.currentSubtitleText = nil
             }
         }
+    }
+}
+
+extension VideoPlayerView {
+    static func parseVTT(_ vtt: String) -> [(start: Double, end: Double, text: String)] {
+        var results: [(start: Double, end: Double, text: String)] = []
+        // Clean out all \r characters before splitting by \n
+        let cleanVtt = vtt.replacingOccurrences(of: "\r", with: "")
+        let lines = cleanVtt.components(separatedBy: "\n")
+
+        var currentStart: Double = 0
+        var currentEnd: Double = 0
+        var currentText = ""
+        var isReadingText = false
+
+        for (index, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            // "WEBVTT" header or other metadata can be safely ignored until we find a timestamp
+            if trimmed.contains("-->") {
+                // If we were already reading text and hit another timestamp without a blank line,
+                // save the previous one.
+                if isReadingText {
+                    let cleanedText = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !cleanedText.isEmpty {
+                        results.append((start: currentStart, end: currentEnd, text: cleanedText))
+                    }
+                    currentText = ""
+                }
+
+                let parts = trimmed.components(separatedBy: "-->")
+                if parts.count == 2 {
+                    // Extract just the time string, ignoring extra VTT positioning metadata (like 'line:20%')
+                    let startStr = parts[0].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first ?? ""
+                    let endStr = parts[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first ?? ""
+
+                    currentStart = Self.parseVTTTime(startStr)
+                    currentEnd = Self.parseVTTTime(endStr)
+                    isReadingText = true
+
+                    if results.count < 3 {
+                        print("🎬 [DEBUG-SUB] Parsed timestamp line \(index): start='\(startStr)' (\(currentStart)s), end='\(endStr)' (\(currentEnd)s)")
+                    }
+                }
+            } else if trimmed.isEmpty {
+                // A blank line signifies the end of a subtitle block
+                if isReadingText {
+                    let cleanedText = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !cleanedText.isEmpty {
+                        results.append((start: currentStart, end: currentEnd, text: cleanedText))
+                    }
+                    currentText = ""
+                    isReadingText = false
+                }
+            } else if isReadingText {
+                // Strip simple HTML tags like <i>, <b>
+                let stripped = trimmed.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
+                if !currentText.isEmpty {
+                    currentText += "\n" + stripped
+                } else {
+                    currentText = stripped
+                }
+            }
+        }
+
+        // Append last block if EOF reached without newline
+        if isReadingText {
+            let cleanedText = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !cleanedText.isEmpty {
+                results.append((start: currentStart, end: currentEnd, text: cleanedText))
+            }
+        }
+
+        return results
+    }
+
+    static func parseVTTTime(_ timeStr: String) -> Double {
+        // Formats: "00:01:23.450" or "01:23.450" or "00:01:23,450"
+        let parts = timeStr.components(separatedBy: ":")
+        var seconds: Double = 0
+
+        if parts.count == 3 {
+            seconds += (Double(parts[0]) ?? 0) * 3600
+            seconds += (Double(parts[1]) ?? 0) * 60
+            seconds += Double(parts[2].replacingOccurrences(of: ",", with: ".")) ?? 0
+        } else if parts.count == 2 {
+            seconds += (Double(parts[0]) ?? 0) * 60
+            seconds += Double(parts[1].replacingOccurrences(of: ",", with: ".")) ?? 0
+        }
+        return seconds
     }
 }

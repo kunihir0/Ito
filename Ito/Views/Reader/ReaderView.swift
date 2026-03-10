@@ -12,7 +12,7 @@ struct ReaderView: View {
 
     @State private var pages: [Page] = []
     @State private var isLoaded = false
-    @State private var errorMessage: String? = nil
+    @State private var errorMessage: String?
 
     // Reader Settings
     @State private var showSettings = false
@@ -21,8 +21,8 @@ struct ReaderView: View {
     // HUD State
     @State private var showUI = true
     @State private var currentPageIndex = 0
-    @State private var scrollTarget: Int? = nil  // Only used for programmatic ScrollView jumps
-    @State private var autoLoadTask: Task<Void, Never>? = nil
+    @State private var scrollTarget: Int?  // Only used for programmatic ScrollView jumps
+    @State private var autoLoadTask: Task<Void, Never>?
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
@@ -304,8 +304,7 @@ struct ReaderView: View {
 
     @ViewBuilder
     private func loadingChapterView(chapter: Manga.Chapter, isNext: Bool, isButton: Bool)
-        -> some View
-    {
+        -> some View {
         VStack(spacing: 16) {
             if !isButton {
                 ProgressView()
@@ -342,8 +341,11 @@ struct ReaderView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
         }
     }
+}
 
-    private func loadPages() async {
+// MARK: - Helpers & Actions
+extension ReaderView {
+    func loadPages() async {
         guard !isLoaded else { return }
         do {
             let pageResult = try await runner.getPageList(manga: manga, chapter: currentChapter)
@@ -351,7 +353,7 @@ struct ReaderView: View {
                 self.pages = pageResult.sorted(by: { $0.index < $1.index })
                 self.isLoaded = true
                 self.progressManager.markAsRead(mangaId: manga.key, chapterId: currentChapter.key, chapterNum: currentChapter.chapter)
-                
+
                 // Track progress
                 if TrackerManager.shared.isAnilistAuthenticated {
                     Task {
@@ -386,23 +388,21 @@ struct ReaderView: View {
         }
     }
 
-    // MARK: - Actions
-
-    private func prevPage() {
+    func prevPage() {
         if currentPageIndex > 0 {
             currentPageIndex -= 1
             scrollTarget = currentPageIndex
         }
     }
 
-    private func nextPage() {
+    func nextPage() {
         if currentPageIndex < pages.count - 1 {
             currentPageIndex += 1
             scrollTarget = currentPageIndex
         }
     }
 
-    private func goToChapter(_ nextChap: Manga.Chapter) {
+    func goToChapter(_ nextChap: Manga.Chapter) {
         print("[Reader] goToChapter called for: \(nextChap.title ?? "Unknown")")
         currentChapter = nextChap
         isLoaded = false
@@ -414,21 +414,19 @@ struct ReaderView: View {
         }
     }
 
-    // MARK: - Helpers
-
-    private var nextChapter: Manga.Chapter? {
+    var nextChapter: Manga.Chapter? {
         guard let chapters = manga.chapters,
               let currentIndex = chapters.firstIndex(where: { $0.key == currentChapter.key })
         else { return nil }
-        
+
         let currentNum = currentChapter.chapter ?? -10000
-        
+
         // Scan backwards for the next chapter (higher number)
         var targetIndex = currentIndex - 1
         while targetIndex >= 0 {
             let candidate = chapters[targetIndex]
             let candNum = candidate.chapter ?? -10000
-            
+
             // Check for a distinct, higher chapter number
             if candNum > currentNum + 0.0001 {
                 return bestSource(for: candNum, in: chapters)
@@ -438,19 +436,19 @@ struct ReaderView: View {
         return nil
     }
 
-    private var previousChapter: Manga.Chapter? {
+    var previousChapter: Manga.Chapter? {
         guard let chapters = manga.chapters,
               let currentIndex = chapters.firstIndex(where: { $0.key == currentChapter.key })
         else { return nil }
-        
+
         let currentNum = currentChapter.chapter ?? -10000
-        
+
         // Scan forwards for the previous chapter (lower number)
         var targetIndex = currentIndex + 1
         while targetIndex < chapters.count {
             let candidate = chapters[targetIndex]
             let candNum = candidate.chapter ?? -10000
-            
+
             if candNum < currentNum - 0.0001 {
                 return bestSource(for: candNum, in: chapters)
             }
@@ -458,28 +456,28 @@ struct ReaderView: View {
         }
         return nil
     }
-    
-    private func bestSource(for chapterNum: Float32, in chapters: [Manga.Chapter]) -> Manga.Chapter? {
+
+    func bestSource(for chapterNum: Float32, in chapters: [Manga.Chapter]) -> Manga.Chapter? {
         // Gather all sources for this chapter number
         let sources = chapters.filter { abs(($0.chapter ?? -10000) - chapterNum) < 0.0001 }
-        
+
         let currentScanlator = currentChapter.scanlator
-        
+
         // 1. Try to find match with same scanlator (handles nil==nil)
         if let match = sources.first(where: { $0.scanlator == currentScanlator }) {
             return match
         }
-        
+
         // 2. Default to first available
         return sources.first
     }
 
-    private var safeAreaTop: CGFloat {
+    var safeAreaTop: CGFloat {
         let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene
         return windowScene?.windows.first?.safeAreaInsets.top ?? 44
     }
 
-    private var safeAreaBottom: CGFloat {
+    var safeAreaBottom: CGFloat {
         let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene
         return windowScene?.windows.first?.safeAreaInsets.bottom ?? 34
     }
@@ -563,7 +561,7 @@ struct MangaImage: View {
 
     private func createRequest(url: URL) -> URLRequest {
         var request = URLRequest(url: url)
-        
+
         if let customHeaders = headers, !customHeaders.isEmpty {
             for (key, value) in customHeaders {
                 request.setValue(value, forHTTPHeaderField: key)
@@ -575,7 +573,7 @@ struct MangaImage: View {
                 forHTTPHeaderField: "User-Agent")
             request.setValue(urlStr, forHTTPHeaderField: "Referer")
         }
-        
+
         return request
     }
 }

@@ -10,12 +10,12 @@ import SwiftUI
 @main
 struct ItoApp: App {
     @StateObject private var appearanceManager = AppearanceManager.shared
-    
+
     init() {
         // Initialize StorageManager early to set URLCache disk capacity
         _ = StorageManager.shared
     }
-    
+
     var body: some Scene {
         WindowGroup {
             MainTabView()

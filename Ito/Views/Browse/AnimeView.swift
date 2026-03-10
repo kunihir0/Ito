@@ -18,14 +18,14 @@ struct AnimeView: View {
     let pluginId: String
 
     @State private var isLoaded = false
-    @State private var errorMessage: String? = nil
-    @State private var watchingEpisode: IdentifiableEpisode? = nil
-    @State private var selectedSeason: String? = nil
-    
+    @State private var errorMessage: String?
+    @State private var watchingEpisode: IdentifiableEpisode?
+    @State private var selectedSeason: String?
+
     @State private var showTrackerSearch = false
     @State private var showTrackerEdit = false
-    @State private var trackingMedia: AnilistMedia? = nil
-    
+    @State private var trackingMedia: AnilistMedia?
+
     @ObservedObject var libraryManager = LibraryManager.shared
     @EnvironmentObject var progressManager: ReadProgressManager
 
@@ -76,7 +76,7 @@ struct AnimeView: View {
                                     .background(Color.secondary.opacity(0.2))
                                     .cornerRadius(4)
                             }
-                            
+
                             Text(pluginId.capitalized)
                                 .font(.caption)
                                 .padding(.horizontal, 8)
@@ -192,7 +192,7 @@ struct AnimeView: View {
                         LazyVStack(spacing: 0) {
                             ForEach(episodes, id: \.key) { episode in
                                 let isWatched = progressManager.isRead(mangaId: anime.key, chapterId: episode.key, chapterNum: episode.episode)
-                                
+
                                 Button(action: {
                                     self.watchingEpisode = IdentifiableEpisode(episode)
                                 }) {
@@ -278,8 +278,7 @@ struct AnimeView: View {
             await MainActor.run {
                 self.anime = updatedAnime
                 if let firstSeason = updatedAnime.seasons?.first(where: { $0.isCurrent })
-                    ?? updatedAnime.seasons?.first
-                {
+                    ?? updatedAnime.seasons?.first {
                     self.selectedSeason = firstSeason.key
                 }
                 self.isLoaded = true

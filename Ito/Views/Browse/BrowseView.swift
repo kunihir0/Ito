@@ -12,7 +12,7 @@ extension UTType {
 struct BrowseView: View {
     @StateObject private var pluginManager = PluginManager.shared
     @StateObject private var repoManager = RepoManager.shared
-    @State private var errorMessage: String? = nil
+    @State private var errorMessage: String?
 
     private var sortedPlugins: [InstalledPlugin] {
         pluginManager.installedPlugins.values.sorted { $0.info.name < $1.info.name }
@@ -163,7 +163,7 @@ struct BrowseView: View {
         let fileManager = FileManager.default
         guard let appSupportDir = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
         let pluginsDir = appSupportDir.appendingPathComponent("Plugins")
-        
+
         if !fileManager.fileExists(atPath: pluginsDir.path) {
             do {
                 try fileManager.createDirectory(at: pluginsDir, withIntermediateDirectories: true)
@@ -177,7 +177,7 @@ struct BrowseView: View {
 
     private func deletePlugin(at offsets: IndexSet) {
         let fileManager = FileManager.default
-        
+
         offsets.forEach { index in
             let plugin = sortedPlugins[index]
             do {
@@ -186,7 +186,7 @@ struct BrowseView: View {
                 print("Failed to delete plugin: \(error)")
             }
         }
-        
+
         Task {
             await pluginManager.reloadInstalledPlugins()
         }
@@ -203,7 +203,7 @@ struct BrowseView: View {
         let zipType = UTType.zip.identifier
         let fileURLType = UTType.fileURL.identifier
 
-        var loadedType: String? = nil
+        var loadedType: String?
         if provider.hasItemConformingToTypeIdentifier(itoType) {
             loadedType = itoType
         } else if provider.hasItemConformingToTypeIdentifier(archiveType) {
@@ -234,7 +234,7 @@ struct BrowseView: View {
             }
 
             let fileManager = FileManager.default
-            
+
             DispatchQueue.main.async {
                 guard let pluginsDir = self.getPluginsDirectory() else {
                     self.errorMessage = "Failed to access plugins directory."
@@ -247,7 +247,7 @@ struct BrowseView: View {
                         try fileManager.removeItem(at: destinationURL)
                     }
                     try fileManager.copyItem(at: tempURL, to: destinationURL)
-                    
+
                     Task {
                         await pluginManager.reloadInstalledPlugins()
                     }
@@ -300,7 +300,7 @@ struct PluginRowView: View {
                     .imageScale(.large)
                     .frame(width: 40, height: 40)
             }
-            
+
             VStack(alignment: .leading) {
                 Text(plugin.info.name)
                     .font(.headline)

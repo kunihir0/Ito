@@ -4,26 +4,26 @@ import NukeUI
 struct TrackerSearchSheet: View {
     let title: String
     let isAnime: Bool
-    
+
     @State private var searchQuery: String
     @State private var searchResults: [AnilistMedia] = []
     @State private var isLoading = false
-    @State private var selectedMedia: AnilistMedia? = nil
-    @State private var errorMessage: String? = nil
-    
+    @State private var selectedMedia: AnilistMedia?
+    @State private var errorMessage: String?
+
     @State private var showDetailsSheet = false
-    
+
     // We pass this callback so the parent view knows when tracking is finalized
     var onTrack: (AnilistMedia) -> Void
     @Environment(\.dismiss) var dismiss
-    
+
     init(title: String, isAnime: Bool, onTrack: @escaping (AnilistMedia) -> Void) {
         self.title = title
         self.isAnime = isAnime
         self._searchQuery = State(initialValue: title)
         self.onTrack = onTrack
     }
-    
+
     var body: some View {
         NavigationView {
             VStack {
@@ -38,14 +38,14 @@ struct TrackerSearchSheet: View {
                     }
                 }
                 .padding()
-                
+
                 if let error = errorMessage {
                     Text(error)
                         .foregroundColor(.red)
                         .font(.caption)
                         .padding(.horizontal)
                 }
-                
+
                 List(searchResults) { media in
                     HStack {
                         if let cover = media.coverImage, let url = URL(string: cover) {
@@ -59,7 +59,7 @@ struct TrackerSearchSheet: View {
                             .frame(width: 50, height: 75)
                             .cornerRadius(4)
                         }
-                        
+
                         VStack(alignment: .leading) {
                             Text(media.title)
                                 .font(.headline)
@@ -76,9 +76,9 @@ struct TrackerSearchSheet: View {
                                 .background(Color.blue.opacity(0.1))
                                 .cornerRadius(4)
                         }
-                        
+
                         Spacer()
-                        
+
                         if selectedMedia?.id == media.id {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
@@ -90,7 +90,7 @@ struct TrackerSearchSheet: View {
                         self.selectedMedia = media
                     }
                 }
-                
+
                 Button(action: {
                     if selectedMedia != nil {
                         // Launch details sheet
@@ -124,19 +124,19 @@ struct TrackerSearchSheet: View {
             }
         }
     }
-    
+
     private func performSearch() {
         guard !searchQuery.isEmpty else { return }
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
                 let results = try await TrackerManager.shared.searchAnilistMediaFull(title: searchQuery, isAnime: isAnime)
                 await MainActor.run {
                     self.searchResults = results
                     self.isLoading = false
-                    
+
                     // Auto-select first match if it's highly relevant (optional)
                     if let first = results.first, first.title.lowercased() == searchQuery.lowercased() {
                         self.selectedMedia = first
@@ -155,22 +155,22 @@ struct TrackerSearchSheet: View {
 struct TrackerDetailsSheet: View {
     let media: AnilistMedia
     var onSave: () -> Void
-    var onDelete: (() -> Void)? = nil
-    
+    var onDelete: (() -> Void)?
+
     @State private var status: String = "PLANNING"
     @State private var progress: String = "0"
     @State private var score: Double = 0
     @State private var startDate = Date()
     // Changed to optional so we don't force a finish date
-    @State private var finishDate: Date? = nil
+    @State private var finishDate: Date?
     @State private var isSaving = false
-    @State private var isLoadingEntry = true 
-    
+    @State private var isLoadingEntry = true
+
     // Tracks if we actually fetched a remote entry or if this is a fresh form
     @State private var isNewEntry = true
-    
+
     let statuses = ["CURRENT", "PLANNING", "COMPLETED", "DROPPED", "PAUSED", "REPEATING"]
-    
+
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
@@ -200,14 +200,14 @@ struct TrackerDetailsSheet: View {
                                 .font(.headline)
                         }
                     }
-                    
+
                     Section(header: Text("Progress")) {
                         Picker("Status", selection: $status) {
-                            ForEach(statuses, id: \.self) { s in
-                                Text(s.capitalized).tag(s)
+                            ForEach(statuses, id: \.self) { statusOption in
+                                Text(statusOption.capitalized).tag(statusOption)
                             }
                         }
-                        
+
                         HStack {
                             Text("Progress")
                             Spacer()
@@ -218,7 +218,7 @@ struct TrackerDetailsSheet: View {
                             Text("/ \(media.episodes ?? media.chapters ?? 0)")
                                 .foregroundColor(.secondary)
                         }
-                        
+
                         HStack {
                             Text("Score")
                             Spacer()
@@ -226,14 +226,14 @@ struct TrackerDetailsSheet: View {
                             Text(String(format: "%.1f", score))
                         }
                     }
-                    
+
                     Section(header: Text("Dates")) {
                         // Always show Started Date
                         DatePicker("Started", selection: $startDate, displayedComponents: .date)
-                        
+
                         // Only show Finished Date if it exists or if status is Completed/Dropped, 
                         // otherwise offer a toggle or just use an optional binding
-                        if let _ = finishDate {
+                        if finishDate != nil {
                             DatePicker("Finished", selection: Binding(get: { finishDate ?? Date() }, set: { finishDate = $0 }), displayedComponents: .date)
                             Button("Remove Finish Date") {
                                 finishDate = nil
@@ -244,7 +244,7 @@ struct TrackerDetailsSheet: View {
                                 finishDate = Date()
                             }
                         }
-                    }                    
+                    }
                     Section {
                         Button(action: saveProgress) {
                             if isSaving {
@@ -267,10 +267,10 @@ struct TrackerDetailsSheet: View {
                     }) {
                         Label("Sync Local History", systemImage: "arrow.triangle.2.circlepath")
                     }
-                    
+
                     Button(action: {
-                        let urlStr = media.format == "MANGA" || media.format == "NOVEL" || media.format == "ONE_SHOT" 
-                            ? "https://anilist.co/manga/\(media.id)" 
+                        let urlStr = media.format == "MANGA" || media.format == "NOVEL" || media.format == "ONE_SHOT"
+                            ? "https://anilist.co/manga/\(media.id)"
                             : "https://anilist.co/anime/\(media.id)"
                         if let url = URL(string: urlStr) {
                             UIApplication.shared.open(url)
@@ -278,7 +278,7 @@ struct TrackerDetailsSheet: View {
                     }) {
                         Label("View on AniList", systemImage: "safari")
                     }
-                    
+
                     if !isNewEntry {
                         Button(role: .destructive, action: {
                             if let onDelete = onDelete {
@@ -286,7 +286,7 @@ struct TrackerDetailsSheet: View {
                             }
                             // Close the current sheet
                             dismiss()
-                            
+
                         }) {
                             Label("Stop Tracking", systemImage: "trash")
                         }
@@ -300,14 +300,14 @@ struct TrackerDetailsSheet: View {
             }
         }
     }
-    
+
     private func fetchExistingEntry() async {
         do {
             if let entry = try await TrackerManager.shared.getMediaListEntry(mediaId: media.id) {
                 print("Found existing entry: \(entry)")
                 await MainActor.run {
                     self.isNewEntry = false
-                    
+
                     if let status = entry["status"] as? String {
                         self.status = status
                     }
@@ -317,25 +317,25 @@ struct TrackerDetailsSheet: View {
                     if let scoreVal = entry["score"] as? Double {
                         self.score = scoreVal
                     }
-                    
+
                     // Parse Dates if available
                     if let start = entry["startedAt"] as? [String: Any?],
-                       let y = start["year"] as? Int, let m = start["month"] as? Int, let d = start["day"] as? Int {
+                       let year = start["year"] as? Int, let month = start["month"] as? Int, let day = start["day"] as? Int {
                         var components = DateComponents()
-                        components.year = y
-                        components.month = m
-                        components.day = d
+                        components.year = year
+                        components.month = month
+                        components.day = day
                         if let date = Calendar.current.date(from: components) {
                             self.startDate = date
                         }
                     }
-                    
+
                     if let end = entry["completedAt"] as? [String: Any?],
-                       let y = end["year"] as? Int, let m = end["month"] as? Int, let d = end["day"] as? Int {
+                       let year = end["year"] as? Int, let month = end["month"] as? Int, let day = end["day"] as? Int {
                         var components = DateComponents()
-                        components.year = y
-                        components.month = m
-                        components.day = d
+                        components.year = year
+                        components.month = month
+                        components.day = day
                         if let date = Calendar.current.date(from: components) {
                             self.finishDate = date
                         }
@@ -356,12 +356,12 @@ struct TrackerDetailsSheet: View {
                 self.isNewEntry = true
             }
         }
-        
+
         await MainActor.run {
             self.isLoadingEntry = false
         }
     }
-    
+
     private func saveProgress() {
         isSaving = true
         Task {
@@ -370,7 +370,7 @@ struct TrackerDetailsSheet: View {
             if let progInt = Int(progress) {
                 try? await TrackerManager.shared.updateProgress(mediaId: media.id, progress: progInt)
             }
-            
+
             await MainActor.run {
                 isSaving = false
                 onSave()

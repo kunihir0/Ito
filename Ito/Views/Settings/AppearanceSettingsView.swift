@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AppearanceSettingsView: View {
     @StateObject private var appearanceManager = AppearanceManager.shared
-    
+
     var body: some View {
         Form {
             Section(header: Text("Theme"), footer: Text("Choose your preferred appearance.")) {

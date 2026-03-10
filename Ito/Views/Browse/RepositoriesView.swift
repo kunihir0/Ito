@@ -7,15 +7,15 @@ struct RepositoriesView: View {
     @StateObject private var repoManager = RepoManager.shared
     @State private var showingAddRepo = false
     @State private var newRepoUrl = ""
-    @State private var errorMessage: String? = nil
-    
+    @State private var errorMessage: String?
+
     var body: some View {
         List {
             if repoManager.repositories.isEmpty {
                 Text("No repositories added. Add one to discover plugins!")
                     .foregroundColor(.secondary)
             }
-            
+
             ForEach(repoManager.repositories) { repo in
                 NavigationLink(destination: RepoDetailView(repository: repo)) {
                     VStack(alignment: .leading) {
@@ -73,13 +73,13 @@ struct RepositoriesView: View {
             await repoManager.refreshAll()
         }
     }
-    
+
     private func deleteRepo(at offsets: IndexSet) {
         offsets.forEach { index in
             repoManager.removeRepository(url: repoManager.repositories[index].url)
         }
     }
-    
+
     private func addRepo() async {
         guard !newRepoUrl.isEmpty else { return }
         do {
@@ -96,7 +96,7 @@ struct RepoDetailView: View {
     @StateObject private var repoManager = RepoManager.shared
     @StateObject private var pluginManager = PluginManager.shared
     @State private var searchQuery = ""
-    
+
     var filteredPackages: [RepoPackage] {
         guard let index = repository.index else { return [] }
         if searchQuery.isEmpty {
@@ -108,7 +108,7 @@ struct RepoDetailView: View {
             }
         }
     }
-    
+
     var body: some View {
         List {
             if let index = repository.index {
@@ -130,7 +130,7 @@ struct RepoDetailView: View {
                                     .frame(width: 40, height: 40)
                                     .cornerRadius(8)
                             }
-                            
+
                             VStack(alignment: .leading) {
                                 Text(pkg.name)
                                     .font(.headline)
@@ -138,9 +138,9 @@ struct RepoDetailView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            
+
                             Spacer()
-                            
+
                             if !repoManager.isCompatible(minAppVersion: pkg.minAppVersion) {
                                 Text("Requires v\(pkg.minAppVersion)")
                                     .font(.caption2)
@@ -180,7 +180,7 @@ struct RepoDetailView: View {
         .searchable(text: $searchQuery, prompt: "Search packages...")
         .navigationTitle(repository.index?.repoName ?? "Repository")
     }
-    
+
     private func installPackage(_ pkg: RepoPackage) async {
         do {
             try await repoManager.installPackage(pkg, repositoryUrl: repository.url)
