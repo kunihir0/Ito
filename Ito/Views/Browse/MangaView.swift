@@ -328,14 +328,16 @@ struct MangaView: View {
     private var resumeReadingChapter: Manga.Chapter? {
         guard let chapters = manga.chapters, !chapters.isEmpty else { return nil }
 
-        // If we have a last read chapter, try to find it
-        if let lastReadId = progressManager.getLastRead(mangaId: manga.key),
-            let lastRead = chapters.first(where: { $0.key == lastReadId }) {
-            return lastRead
+        // The chapters array is typically returned descending (newest first).
+        // Let's iterate in chronological order (oldest first) to find the first unread chapter.
+        let chronologicalChapters = chapters.reversed()
+
+        if let firstUnread = chronologicalChapters.first(where: { !progressManager.isRead(mangaId: manga.key, chapterId: $0.key, chapterNum: $0.chapter) }) {
+            return firstUnread
         }
 
-        // Otherwise, return the chronologically first chapter (which is typically the last element in the array)
-        return chapters.last
+        // If all chapters are read, return the most recently released chapter (the highest number).
+        return chapters.first
     }
 
     private func statusText(for status: Manga.Status) -> String? {

@@ -260,6 +260,19 @@ public class TrackerManager: ObservableObject {
     public func updateProgress(mediaId: Int, progress: Int) async throws {
         guard let token = anilistToken else { throw URLError(.userAuthenticationRequired) }
 
+        // Check current progress first to avoid overwriting with a lower number
+        do {
+            if let entry = try await getMediaListEntry(mediaId: mediaId),
+               let currentProgress = entry["progress"] as? Int {
+                if currentProgress >= progress {
+                    print("AniList Update Skipped: Current progress (\(currentProgress)) is >= new progress (\(progress)).")
+                    return
+                }
+            }
+        } catch {
+            print("Failed to fetch existing entry before updating, proceeding with update. Error: \(error)")
+        }
+
         let mutation = """
         mutation ($mediaId: Int, $progress: Int) {
             SaveMediaListEntry(mediaId: $mediaId, progress: $progress) {
