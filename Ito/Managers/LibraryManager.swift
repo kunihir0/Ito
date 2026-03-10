@@ -9,12 +9,18 @@ public struct LibraryItem: Codable, Identifiable, Hashable {
     public let coverUrl: String?
     public let pluginId: String
     public let isAnime: Bool
+    public var pluginType: PluginType? // Added to support Novel without breaking old saves
 
     // We store the raw payload so we can easily instantiate an Anime/Manga object when the user clicks it.
     public let rawPayload: Data
 
     // AniList Tracker Mapping
     public var anilistId: Int?
+
+    public var effectiveType: PluginType {
+        if let pt = pluginType { return pt }
+        return isAnime ? .anime : .manga
+    }
 
     public static func == (lhs: LibraryItem, rhs: LibraryItem) -> Bool {
         return lhs.id == rhs.id && lhs.anilistId == rhs.anilistId
@@ -53,7 +59,19 @@ public class LibraryManager: ObservableObject {
             items.removeAll(where: { $0.id == manga.key })
         } else {
             if let payload = try? JSONEncoder().encode(manga) {
-                let item = LibraryItem(id: manga.key, title: manga.title, coverUrl: manga.cover, pluginId: pluginId, isAnime: false, rawPayload: payload, anilistId: nil)
+                let item = LibraryItem(id: manga.key, title: manga.title, coverUrl: manga.cover, pluginId: pluginId, isAnime: false, pluginType: .manga, rawPayload: payload, anilistId: nil)
+                items.append(item)
+            }
+        }
+        saveLibrary()
+    }
+
+    public func toggleSaveNovel(novel: Novel, pluginId: String) {
+        if isSaved(id: novel.key) {
+            items.removeAll(where: { $0.id == novel.key })
+        } else {
+            if let payload = try? JSONEncoder().encode(novel) {
+                let item = LibraryItem(id: novel.key, title: novel.title, coverUrl: novel.cover, pluginId: pluginId, isAnime: false, pluginType: .novel, rawPayload: payload, anilistId: nil)
                 items.append(item)
             }
         }
@@ -65,7 +83,7 @@ public class LibraryManager: ObservableObject {
             items.removeAll(where: { $0.id == anime.key })
         } else {
             if let payload = try? JSONEncoder().encode(anime) {
-                let item = LibraryItem(id: anime.key, title: anime.title, coverUrl: anime.cover, pluginId: pluginId, isAnime: true, rawPayload: payload, anilistId: nil)
+                let item = LibraryItem(id: anime.key, title: anime.title, coverUrl: anime.cover, pluginId: pluginId, isAnime: true, pluginType: .anime, rawPayload: payload, anilistId: nil)
                 items.append(item)
             }
         }

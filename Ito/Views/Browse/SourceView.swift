@@ -9,6 +9,7 @@ struct SourceView: View {
     @State private var runner: ItoRunner?
     @State private var mangas: [Manga] = []
     @State private var animes: [Anime] = []
+    @State private var novels: [Novel] = []
     @State private var isLoaded = false
     @State private var errorMessage: String?
 
@@ -22,7 +23,8 @@ struct SourceView: View {
             } else if let error = errorMessage {
                 Text("Error: \(error)").foregroundColor(.red)
             } else {
-                if plugin.info.type == .anime {
+                switch plugin.info.type {
+                case .anime:
                     List(animes, id: \.key) { anime in
                         ZStack {
                             if let runner = self.runner {
@@ -78,7 +80,7 @@ struct SourceView: View {
                         .padding(.vertical, 4)
                     }
                     .listStyle(.plain)
-                } else {
+                case .manga:
                     List(mangas, id: \.key) { manga in
                         ZStack {
                             if let runner = self.runner {
@@ -134,6 +136,62 @@ struct SourceView: View {
                         .padding(.vertical, 4)
                     }
                     .listStyle(.plain)
+                case .novel:
+                    List(novels, id: \.key) { novel in
+                        ZStack {
+                            if let runner = self.runner {
+                                NavigationLink(destination: NovelView(runner: runner, novel: novel, pluginId: plugin.url.deletingPathExtension().lastPathComponent)) {
+                                    EmptyView()
+                                }
+                                .opacity(0)
+                            }
+
+                            HStack(alignment: .top, spacing: 12) {
+                                if let coverURL = novel.cover, let url = URL(string: coverURL) {
+                                    LazyImage(url: url) { state in
+                                        if let image = state.image {
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                                .frame(width: 60, height: 90)
+                                                .cornerRadius(6)
+                                                .clipped()
+                                        } else if state.error != nil {
+                                            Color.red.opacity(0.3)
+                                                .frame(width: 60, height: 90)
+                                                .cornerRadius(6)
+                                        } else {
+                                            Color.gray.opacity(0.3)
+                                                .frame(width: 60, height: 90)
+                                                .cornerRadius(6)
+                                        }
+                                    }
+                                    .processors([.resize(width: 200)])
+                                } else {
+                                    Color.gray.opacity(0.3)
+                                        .frame(width: 60, height: 90)
+                                        .cornerRadius(6)
+                                }
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(novel.title)
+                                        .font(.headline)
+                                        .lineLimit(2)
+
+                                    if let authors = novel.authors, !authors.isEmpty {
+                                        Text(authors.joined(separator: ", "))
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+
+                                Spacer()
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .listStyle(.plain)
                 }
             }
         }
@@ -163,16 +221,16 @@ struct SourceView: View {
             guard !Task.isCancelled, let pluginRunner = self.runner else { return }
 
             do {
-                if plugin.info.type == .anime {
+                switch plugin.info.type {
+                case .anime:
                     let result = try await pluginRunner.getSearchAnimeList(query: query, page: 1, filters: [])
-                    await MainActor.run {
-                        self.animes = result.entries
-                    }
-                } else {
+                    await MainActor.run { self.animes = result.entries }
+                case .manga:
                     let result = try await pluginRunner.getSearchMangaList(query: query, page: 1, filters: [])
-                    await MainActor.run {
-                        self.mangas = result.entries
-                    }
+                    await MainActor.run { self.mangas = result.entries }
+                case .novel:
+                    let result = try await pluginRunner.getSearchNovelList(query: query, page: 1, filters: [])
+                    await MainActor.run { self.novels = result.entries }
                 }
             } catch {
                 print("Search failed: \(error)")
@@ -199,16 +257,23 @@ struct SourceView: View {
 
             let listing = Listing(id: "views", name: "Popular", kind: 0)
 
-            if plugin.info.type == .anime {
+            switch plugin.info.type {
+            case .anime:
                 let result = try await pluginRunner.getAnimeList(listing: listing, page: 1)
                 await MainActor.run {
                     self.animes = result.entries
                     self.isLoaded = true
                 }
-            } else {
+            case .manga:
                 let result = try await pluginRunner.getMangaList(listing: listing, page: 1)
                 await MainActor.run {
                     self.mangas = result.entries
+                    self.isLoaded = true
+                }
+            case .novel:
+                let result = try await pluginRunner.getNovelList(listing: listing, page: 1)
+                await MainActor.run {
+                    self.novels = result.entries
                     self.isLoaded = true
                 }
             }

@@ -95,12 +95,12 @@ struct LibraryItemView: View {
                 }
 
                 // Type badge only
-                Text(item.isAnime ? "Anime" : "Manga")
+                Text(item.effectiveType.rawValue.capitalized)
                     .font(.caption2)
                     .fontWeight(.bold)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(item.isAnime ? Color.blue : Color.orange)
+                    .background(item.effectiveType == .anime ? Color.blue : (item.effectiveType == .novel ? Color.purple : Color.orange))
                     .foregroundColor(.white)
                     .cornerRadius(4)
                     .padding(4)
@@ -136,6 +136,7 @@ struct DeferredPluginView: View {
     // Decoded instances
     @State private var decodedAnime: Anime?
     @State private var decodedManga: Manga?
+    @State private var decodedNovel: Novel?
 
     var body: some View {
         Group {
@@ -153,12 +154,25 @@ struct DeferredPluginView: View {
                         .padding()
                 }
             } else if let runner = runner {
-                if item.isAnime, let anime = decodedAnime {
-                    AnimeView(runner: runner, anime: anime, pluginId: item.pluginId)
-                } else if !item.isAnime, let manga = decodedManga {
-                    MangaView(runner: runner, manga: manga, pluginId: item.pluginId)
-                } else {
-                    Text("Failed to decode saved item.")
+                switch item.effectiveType {
+                case .anime:
+                    if let anime = decodedAnime {
+                        AnimeView(runner: runner, anime: anime, pluginId: item.pluginId)
+                    } else {
+                        Text("Failed to decode saved anime.")
+                    }
+                case .manga:
+                    if let manga = decodedManga {
+                        MangaView(runner: runner, manga: manga, pluginId: item.pluginId)
+                    } else {
+                        Text("Failed to decode saved manga.")
+                    }
+                case .novel:
+                    if let novel = decodedNovel {
+                        NovelView(runner: runner, novel: novel, pluginId: item.pluginId)
+                    } else {
+                        Text("Failed to decode saved novel.")
+                    }
                 }
             } else {
                 ProgressView("Starting plugin...")
@@ -177,10 +191,13 @@ struct DeferredPluginView: View {
 
     private func loadRunnerAndItem() async {
         do {
-            if item.isAnime {
+            switch item.effectiveType {
+            case .anime:
                 self.decodedAnime = try JSONDecoder().decode(Anime.self, from: item.rawPayload)
-            } else {
+            case .manga:
                 self.decodedManga = try JSONDecoder().decode(Manga.self, from: item.rawPayload)
+            case .novel:
+                self.decodedNovel = try JSONDecoder().decode(Novel.self, from: item.rawPayload)
             }
 
             let pluginRunner = try await PluginManager.shared.getRunner(for: item.pluginId)
