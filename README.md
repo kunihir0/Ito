@@ -1,24 +1,29 @@
 <div align="center">
   <img src="Ito/Assets.xcassets/AppIcon.appiconset/app.png" alt="Ito Logo" width="150" />
   <h1>Ito</h1>
-  <p><strong>A iOS app for manga and anime.</strong></p>
+  <p><strong>All in One app for Anime, Manga, and Novels.</strong></p>
 </div>
 
 ---
 
-Ito is a free, ad-free iOS client for reading manga and watching anime. It is free forever and powered by a secure WebAssembly (WASM) plugin architecture.
+Ito is a free, ad-free iOS client for reading and watching anime. It is free forever and powered by a secure WebAssembly (WASM) plugin architecture.
 
 ## Features
-* **Manga & Anime:** Read and watch natively in a single app.
+* **Manga, Novel & Anime:** Read and watch natively in a single app.
+* **Discovery:** Discover content powered by indexer like Anilist(more coming soon)
 * **Zero Ads:** 100% free forever with no advertisements.
 * **Progress Tracking:** Sync your library using **AniList** (more coming soon).
 * **WASM Plugins:** Dynamic, isolated content sourcing.
 
 ## Showcase
 <p align="center">
-  <img src="assets/screenshots/details.png" alt="Details View" width="40%" />
+  <img src="assets/screenshots/details.png" alt="Details View" width="23%" />
   &nbsp;&nbsp;
-  <img src="assets/screenshots/reader.png" alt="Reader View" width="40%" />
+  <img src="assets/screenshots/reader.png" alt="Reader View" width="23%" />
+  &nbsp;&nbsp;
+  <img src="assets/screenshots/discover.png" alt="Reader View" width="23%" />
+  &nbsp;&nbsp;
+  <img src="assets/screenshots/library.png" alt="Reader View" width="23%" />
 </p>
 
 ## Development

@@ -6,7 +6,7 @@ struct DiscoverView: View {
     @StateObject private var manager = DiscoverManager.shared
     @StateObject private var pluginManager = PluginManager.shared
 
-    @State private var selectedType: DiscoverMediaType = .anime
+    @State private var selectedType: DiscoverMediaType = .manga
     @State private var searchQuery = ""
     @State private var searchResults: [DiscoverMedia] = []
     @State private var isSearching = false
