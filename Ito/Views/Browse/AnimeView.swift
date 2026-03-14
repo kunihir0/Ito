@@ -195,16 +195,19 @@ struct AnimeView: View {
             }
         }
         .sheet(item: $trackingMedia) { media in
-            TrackerDetailsSheet(
-                media: media,
-                onSave: { progress in
-                    if let prog = progress,
-                       UserDefaults.standard.object(forKey: "Ito.AutoSyncAnilistToLocal") as? Bool ?? true {
-                        ReadProgressManager.shared.markReadUpTo(mangaId: anime.key, maxChapterNum: Float(prog))
-                    }
-                },
-                onDelete: { TrackerManager.shared.unlink(localId: anime.key) }
-            )
+            NavigationView {
+                TrackerDetailsSheet(
+                    media: media,
+                    showCancelButton: true,
+                    onSave: { progress in
+                        if let prog = progress,
+                           UserDefaults.standard.object(forKey: "Ito.AutoSyncAnilistToLocal") as? Bool ?? true {
+                            ReadProgressManager.shared.markReadUpTo(mangaId: anime.key, maxChapterNum: Float(prog))
+                        }
+                    },
+                    onDelete: { TrackerManager.shared.unlink(localId: anime.key) }
+                )
+            }
         }
         .fullScreenCover(item: $watchingEpisode) { identified in
             VideoPlayerView(runner: runner, anime: anime, episode: identified.episode)

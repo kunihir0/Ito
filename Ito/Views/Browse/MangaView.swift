@@ -192,16 +192,19 @@ struct MangaView: View {
             }
         }
         .sheet(item: $trackingMedia) { media in
-            TrackerDetailsSheet(
-                media: media,
-                onSave: { progress in
-                    if let prog = progress,
-                       UserDefaults.standard.object(forKey: "Ito.AutoSyncAnilistToLocal") as? Bool ?? true {
-                        ReadProgressManager.shared.markReadUpTo(mangaId: manga.key, maxChapterNum: Float(prog))
-                    }
-                },
-                onDelete: { TrackerManager.shared.unlink(localId: manga.key) }
-            )
+            NavigationView {
+                TrackerDetailsSheet(
+                    media: media,
+                    showCancelButton: true,
+                    onSave: { progress in
+                        if let prog = progress,
+                           UserDefaults.standard.object(forKey: "Ito.AutoSyncAnilistToLocal") as? Bool ?? true {
+                            ReadProgressManager.shared.markReadUpTo(mangaId: manga.key, maxChapterNum: Float(prog))
+                        }
+                    },
+                    onDelete: { TrackerManager.shared.unlink(localId: manga.key) }
+                )
+            }
         }
         .fullScreenCover(item: $readingChapter) { wrapper in
             ReaderView(runner: runner, manga: manga, currentChapter: wrapper.chapter)

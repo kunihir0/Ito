@@ -169,20 +169,19 @@ extension NovelReaderView {
                 // Track progress
                 if TrackerManager.shared.isAnilistAuthenticated {
                     Task {
-                        let titleOrFallback = currentChapter.title ?? currentChapter.key
-                        let numbers = titleOrFallback.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
-                        if let chapNum = Int(numbers) {
+                        if let mediaId = TrackerManager.shared.getAnilistId(for: novel.key) {
                             do {
-                                if let mediaId = try await TrackerManager.shared.searchAnilistMedia(title: novel.title, isAnime: false) {
-                                    try await TrackerManager.shared.updateProgress(mediaId: mediaId, progress: chapNum)
-                                }
-                            } catch {
-                                print("📖 [DEBUG-TRACKER] Failed to update progress: \(error)")
-                            }
-                        } else if let num = currentChapter.chapter {
-                            do {
-                                if let mediaId = try await TrackerManager.shared.searchAnilistMedia(title: novel.title, isAnime: false) {
-                                    try await TrackerManager.shared.updateProgress(mediaId: mediaId, progress: Int(num))
+                                if let chapterFloat = currentChapter.chapter {
+                                    try await TrackerManager.shared.updateProgress(mediaId: mediaId, progress: Int(chapterFloat))
+                                } else {
+                                    let titleOrFallback = currentChapter.title ?? currentChapter.key
+                                    let words = titleOrFallback.components(separatedBy: .whitespacesAndNewlines)
+                                    if let numberWord = words.first(where: { $0.rangeOfCharacter(from: .decimalDigits) != nil }) {
+                                        let numbersOnly = numberWord.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
+                                        if let chapNum = Int(numbersOnly) {
+                                            try await TrackerManager.shared.updateProgress(mediaId: mediaId, progress: chapNum)
+                                        }
+                                    }
                                 }
                             } catch {
                                 print("📖 [DEBUG-TRACKER] Failed to update progress: \(error)")

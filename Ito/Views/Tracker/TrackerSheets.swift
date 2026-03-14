@@ -91,36 +91,43 @@ struct TrackerSearchSheet: View {
                     }
                 }
 
-                Button(action: {
-                    if selectedMedia != nil {
-                        // Launch details sheet
-                        showDetailsSheet = true
+                ZStack {
+                    if let selectedMedia = selectedMedia {
+                        NavigationLink(
+                            destination: TrackerDetailsSheet(media: selectedMedia, onSave: { progress in
+                                onTrack(selectedMedia, progress)
+                                showDetailsSheet = false
+                                dismiss() // Dismiss the search sheet itself
+                            }),
+                            isActive: $showDetailsSheet
+                        ) {
+                            EmptyView()
+                        }
                     }
-                }) {
-                    Text("Select Series")
-                        .fontWeight(.bold)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(selectedMedia == nil ? Color.gray : Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
+
+                    Button(action: {
+                        if selectedMedia != nil {
+                            // Launch details sheet via NavigationLink activation
+                            showDetailsSheet = true
+                        }
+                    }) {
+                        Text("Select Series")
+                            .fontWeight(.bold)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(selectedMedia == nil ? Color.gray : Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                    }
+                    .disabled(selectedMedia == nil)
                 }
-                .disabled(selectedMedia == nil)
                 .padding()
             }
             .navigationTitle("Track Series")
+            .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(trailing: Button("Cancel") { dismiss() })
             .task {
                 performSearch()
-            }
-            .sheet(isPresented: $showDetailsSheet) {
-                if let media = selectedMedia {
-                    TrackerDetailsSheet(media: media, onSave: { progress in
-                        onTrack(media, progress)
-                        showDetailsSheet = false
-                        dismiss() // Dismiss the search sheet itself
-                    })
-                }
             }
         }
     }
@@ -154,10 +161,11 @@ struct TrackerSearchSheet: View {
 
 struct TrackerDetailsSheet: View {
     let media: AnilistMedia
+    var showCancelButton: Bool = false
     var onSave: (Int?) -> Void
     var onDelete: (() -> Void)?
 
-    @State private var status: String = "PLANNING"
+    @State private var status: String? = "PLANNING"
     @State private var progress: String = "0"
     @State private var score: Double = 0
     @State private var startDate = Date()
@@ -171,14 +179,22 @@ struct TrackerDetailsSheet: View {
 
     let statuses = ["CURRENT", "PLANNING", "COMPLETED", "DROPPED", "PAUSED", "REPEATING"]
 
+    private var currentStatusLabel: String {
+        let format = media.format ?? ""
+        if format == "MANGA" || format == "NOVEL" || format == "ONE_SHOT" {
+            return "Reading"
+        } else {
+            return "Watching"
+        }
+    }
+
     @State private var showSyncAlert = false
     @State private var maxLocalProgress: Int?
 
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        NavigationView {
-            Form {
+        Form {
                 if isLoadingEntry {
                     HStack {
                         Spacer()
@@ -207,7 +223,11 @@ struct TrackerDetailsSheet: View {
                     Section(header: Text("Progress")) {
                         Picker("Status", selection: $status) {
                             ForEach(statuses, id: \.self) { statusOption in
-                                Text(statusOption.capitalized).tag(statusOption)
+                                if statusOption == "CURRENT" {
+                                    Text(currentStatusLabel).tag(String?.some(statusOption))
+                                } else {
+                                    Text(statusOption.capitalized).tag(String?.some(statusOption))
+                                }
                             }
                         }
 
@@ -217,9 +237,22 @@ struct TrackerDetailsSheet: View {
                             TextField("0", text: $progress)
                                 .keyboardType(.numberPad)
                                 .multilineTextAlignment(.trailing)
-                                .frame(width: 80)
-                            Text("/ \(media.episodes ?? media.chapters ?? 0)")
-                                .foregroundColor(.secondary)
+                                .frame(width: 50)
+
+                            Stepper("", onIncrement: {
+                                if let val = Int(progress) { progress = String(val + 1) }
+                            }, onDecrement: {
+                                if let val = Int(progress), val > 0 { progress = String(val - 1) }
+                            })
+                            .labelsHidden()
+
+                            if let total = media.episodes ?? media.chapters {
+                                Text("/ \(total)")
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("/ ?")
+                                    .foregroundColor(.secondary)
+                            }
                         }
 
                         HStack {
@@ -249,58 +282,58 @@ struct TrackerDetailsSheet: View {
                         }
                     }
                     Section {
-                        Button(action: saveProgress) {
-                            if isSaving {
-                                ProgressView()
-                            } else {
-                                Text("Track Series")
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                                    .foregroundColor(.blue)
+                        Button(action: {
+                            calculateLocalProgress()
+                        }) {
+                            Label("Sync Local History", systemImage: "arrow.triangle.2.circlepath")
+                        }
+
+                        Button(action: {
+                            let urlStr = media.format == "MANGA" || media.format == "NOVEL" || media.format == "ONE_SHOT"
+                                ? "https://anilist.co/manga/\(media.id)"
+                                : "https://anilist.co/anime/\(media.id)"
+                            if let url = URL(string: urlStr) {
+                                UIApplication.shared.open(url)
+                            }
+                        }) {
+                            Label("View on AniList", systemImage: "safari")
+                        }
+
+                        if !isNewEntry {
+                            Button(role: .destructive, action: {
+                                if let onDelete = onDelete {
+                                    onDelete()
+                                }
+                                dismiss()
+                            }) {
+                                Label("Stop Tracking", systemImage: "trash")
+                                    .foregroundColor(.red)
                             }
                         }
                     }
                 }
             }
             .navigationTitle("Update Entry")
-            .navigationBarItems(
-                leading: Button("Cancel") { onSave(nil) }, // Just close if canceled
-                trailing: Menu {
-                    Button(action: {
-                        calculateLocalProgress()
-                    }) {
-                        Label("Sync Local History", systemImage: "arrow.triangle.2.circlepath")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    if showCancelButton {
+                        Button("Cancel") { onSave(nil); dismiss() }
                     }
-
-                    Button(action: {
-                        let urlStr = media.format == "MANGA" || media.format == "NOVEL" || media.format == "ONE_SHOT"
-                            ? "https://anilist.co/manga/\(media.id)"
-                            : "https://anilist.co/anime/\(media.id)"
-                        if let url = URL(string: urlStr) {
-                            UIApplication.shared.open(url)
-                        }
-                    }) {
-                        Label("View on AniList", systemImage: "safari")
-                    }
-
-                    if !isNewEntry {
-                        Button(role: .destructive, action: {
-                            if let onDelete = onDelete {
-                                onDelete()
-                            }
-                            // Close the current sheet
-                            dismiss()
-
-                        }) {
-                            Label("Stop Tracking", systemImage: "trash")
-                        }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
                 }
-            )
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(action: saveProgress) {
+                        if isSaving {
+                            ProgressView()
+                        } else {
+                            Text("Save").fontWeight(.bold)
+                        }
+                    }
+                }
+            }
             .alert("Sync Local History", isPresented: $showSyncAlert) {
                 Button("Cancel", role: .cancel) { }
-                Button("Sync", role: .destructive) {
+                Button("Sync") {
                     if let maxLoc = maxLocalProgress {
                         self.progress = String(maxLoc)
                     }
@@ -315,7 +348,11 @@ struct TrackerDetailsSheet: View {
             .task {
                 await fetchExistingEntry()
             }
-        }
+            .onChange(of: progress) { newValue in
+                if let val = Int(newValue), val > 0, status == "PLANNING" {
+                    status = "CURRENT"
+                }
+            }
     }
 
     private func calculateLocalProgress() {
@@ -357,8 +394,10 @@ struct TrackerDetailsSheet: View {
                 await MainActor.run {
                     self.isNewEntry = false
 
-                    if let status = entry["status"] as? String {
-                        self.status = status
+                    if let statusStr = entry["status"] as? String {
+                        self.status = statusStr
+                    } else {
+                        self.status = "PLANNING"
                     }
                     if let prog = entry["progress"] as? Int {
                         self.progress = String(prog)
@@ -414,11 +453,20 @@ struct TrackerDetailsSheet: View {
     private func saveProgress() {
         isSaving = true
         Task {
-            // Here we would call TrackerManager.shared.updateMediaEntry(...)
             var savedProgress: Int?
-            if let progInt = Int(progress) {
-                try? await TrackerManager.shared.updateProgress(mediaId: media.id, progress: progInt)
+            // Determine if progress is just 0 but we want to save status anyway
+            let progInt = Int(progress)
+
+            // If status is "PLANNING" but progress > 0, logically the user has started it.
+            // We can let TrackerManager handle the automatic transition, 
+            // but we might as well pass the user's explicit choice here.
+            let effectiveStatus = status
+
+            do {
+                try await TrackerManager.shared.updateProgress(mediaId: media.id, progress: progInt, status: effectiveStatus)
                 savedProgress = progInt
+            } catch {
+                print("Failed saving TrackerProgress with status: \(error.localizedDescription)")
             }
 
             await MainActor.run {

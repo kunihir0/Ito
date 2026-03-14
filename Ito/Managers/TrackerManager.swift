@@ -256,36 +256,46 @@ public class TrackerManager: ObservableObject {
         return []
     }
 
-    /// Updates the user's progress on a given AniList mediaId
-    public func updateProgress(mediaId: Int, progress: Int) async throws {
+    /// Updates the user's progress and optionally the status on a given AniList mediaId
+    public func updateProgress(mediaId: Int, progress: Int?, status: String? = nil) async throws {
         guard let token = anilistToken else { throw URLError(.userAuthenticationRequired) }
 
-        // Check current progress first to avoid overwriting with a lower number
-        do {
-            if let entry = try await getMediaListEntry(mediaId: mediaId),
-               let currentProgress = entry["progress"] as? Int {
-                if currentProgress >= progress {
-                    print("AniList Update Skipped: Current progress (\(currentProgress)) is >= new progress (\(progress)).")
-                    return
+        // Check current progress first to avoid overwriting with a lower number ONLY if progress is being updated
+        if let progress = progress {
+            do {
+                if let entry = try await getMediaListEntry(mediaId: mediaId),
+                   let currentProgress = entry["progress"] as? Int {
+                    if currentProgress >= progress && (status == nil || entry["status"] as? String == status) {
+                        print("AniList Update Skipped: Current progress/status matches or exceeds new values.")
+                        return
+                    }
                 }
+            } catch {
+                print("Failed to fetch existing entry before updating, proceeding with update. Error: \(error)")
             }
-        } catch {
-            print("Failed to fetch existing entry before updating, proceeding with update. Error: \(error)")
         }
 
         let mutation = """
-        mutation ($mediaId: Int, $progress: Int) {
-            SaveMediaListEntry(mediaId: $mediaId, progress: $progress) {
+        mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
+            SaveMediaListEntry(mediaId: $mediaId, progress: $progress, status: $status) {
                 id
                 progress
+                status
             }
         }
         """
 
-        let variables: [String: Any] = [
-            "mediaId": mediaId,
-            "progress": progress
+        var variables: [String: Any] = [
+            "mediaId": mediaId
         ]
+
+        if let progress = progress {
+            variables["progress"] = progress
+        }
+
+        if let status = status {
+            variables["status"] = status
+        }
 
         let body: [String: Any] = ["query": mutation, "variables": variables]
         let jsonData = try JSONSerialization.data(withJSONObject: body)
@@ -307,7 +317,7 @@ public class TrackerManager: ObservableObject {
                 print("AniList Update Failed with status: \(httpResponse.statusCode)")
                 throw URLError(.badServerResponse)
             } else {
-                print("AniList Update Successful: MediaID \(mediaId) -> Progress \(progress)")
+                print("AniList Update Successful: MediaID \(mediaId) -> Progress \(progress ?? -1), Status \(status ?? "N/A")")
             }
         }
     }
