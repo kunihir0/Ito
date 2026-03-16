@@ -5,6 +5,9 @@
 </div>
 
 ---
+> [!WARNING]
+> **Legal Disclaimer**  
+> We do not hold any responsibility for any illegal usage of the codebase. Please refer to your local laws about DMCA and other related laws.
 
 Ito is a free, ad-free iOS client for reading and watching anime. It is free forever and powered by a secure WebAssembly (WASM) plugin architecture.
 
