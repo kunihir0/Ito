@@ -27,6 +27,7 @@ struct FlatPage: Identifiable {
 
 struct ReaderView: View {
     let runner: ItoRunner
+    let pluginId: String
     let manga: Manga
     @State var currentChapter: Manga.Chapter
 
@@ -524,6 +525,9 @@ extension ReaderView {
     }
 
     func markChapterRead(_ chapter: Manga.Chapter) {
+        let chapterTitleStr = chapter.title ?? chapter.key
+        HistoryManager.shared.addManga(manga, chapterTitle: chapterTitleStr, pluginId: pluginId)
+
         guard !markedChapterKeys.contains(chapter.key) else { return }
         markedChapterKeys.insert(chapter.key)
         progressManager.markAsRead(

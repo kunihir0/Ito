@@ -208,7 +208,7 @@ struct NovelView: View {
                     }
                 }
         .fullScreenCover(item: $readingChapter) { wrapper in
-            NovelReaderView(runner: runner, novel: novel, currentChapter: wrapper.chapter)
+            NovelReaderView(runner: runner, pluginId: pluginId, novel: novel, currentChapter: wrapper.chapter)
         }
         .task { await loadDetails() }
         .refreshable { await loadDetails(force: true) }

@@ -3,6 +3,7 @@ import ito_runner
 
 struct NovelReaderView: View {
     let runner: ItoRunner
+    let pluginId: String
     let novel: Novel
     @State var currentChapter: Novel.Chapter
 
@@ -164,6 +165,9 @@ extension NovelReaderView {
             await MainActor.run {
                 self.pages = pageResult.sorted(by: { $0.index < $1.index })
                 self.isLoaded = true
+
+                let chapterTitleStr = currentChapter.title ?? currentChapter.key
+                HistoryManager.shared.addNovel(novel, chapterTitle: chapterTitleStr, pluginId: pluginId)
                 self.progressManager.markAsRead(mangaId: novel.key, chapterId: currentChapter.key, chapterNum: currentChapter.chapter)
 
                 // Track progress

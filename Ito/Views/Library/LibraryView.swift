@@ -114,15 +114,20 @@ struct LibraryView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .navigationBarLeading) {
-            if !libraryManager.items.isEmpty {
-                Button {
-                    Task {
-                        await updateManager.checkForUpdates()
-                    }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
+            HStack(spacing: 16) {
+                NavigationLink(destination: HistoryView()) {
+                    Image(systemName: "clock.arrow.circlepath")
                 }
-                .disabled(updateManager.isRefreshing)
+                if !libraryManager.items.isEmpty {
+                    Button {
+                        Task {
+                            await updateManager.checkForUpdates()
+                        }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .disabled(updateManager.isRefreshing)
+                }
             }
         }
         ToolbarItem(placement: .navigationBarTrailing) {

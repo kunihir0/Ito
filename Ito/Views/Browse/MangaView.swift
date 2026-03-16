@@ -209,7 +209,7 @@ struct MangaView: View {
                     }
                 }
         .fullScreenCover(item: $readingChapter) { wrapper in
-            ReaderView(runner: runner, manga: manga, currentChapter: wrapper.chapter)
+            ReaderView(runner: runner, pluginId: pluginId, manga: manga, currentChapter: wrapper.chapter)
         }
         .task { await loadDetails() }
         .refreshable { await loadDetails(force: true) }

@@ -8,6 +8,9 @@ struct SettingsView: View {
                     NavigationLink(destination: AppearanceSettingsView()) {
                         Label("Appearance", systemImage: "paintpalette")
                     }
+                    NavigationLink(destination: PrivacySettingsView()) {
+                        Label("Privacy", systemImage: "hand.raised")
+                    }
                     NavigationLink(destination: Text("Reader Settings View")) {
                         Label("Reader", systemImage: "book")
                     }

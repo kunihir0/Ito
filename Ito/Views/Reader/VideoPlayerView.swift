@@ -4,6 +4,7 @@ import ito_runner
 
 struct VideoPlayerView: View {
     let runner: ItoRunner
+    let pluginId: String
     let anime: Anime
     let episode: Anime.Episode
 
@@ -204,6 +205,11 @@ struct VideoPlayerView: View {
 
     private func loadVideoStreams() async {
         guard !isLoaded else { return }
+
+        // Record history right away so it shows up even if it fails to load
+        let episodeTitleStr = episode.title ?? episode.key
+        HistoryManager.shared.addAnime(anime, episodeTitle: episodeTitleStr, pluginId: pluginId)
+
         do {
             print("🎬 [DEBUG] Fetching video list for episode: \(episode.key)")
             let fetchedVideos = try await runner.getVideoList(anime: anime, episode: episode)

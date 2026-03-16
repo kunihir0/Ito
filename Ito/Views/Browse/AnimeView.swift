@@ -212,7 +212,7 @@ struct AnimeView: View {
                     }
         }
         .fullScreenCover(item: $watchingEpisode) { identified in
-            VideoPlayerView(runner: runner, anime: anime, episode: identified.episode)
+            VideoPlayerView(runner: runner, pluginId: pluginId, anime: anime, episode: identified.episode)
         }
         .task { await loadDetails() }
         .refreshable { await loadDetails(force: true) }
