@@ -33,7 +33,7 @@ public struct LibraryItem: Codable, Identifiable, Hashable, Sendable {
 }
 
 @MainActor
-public class LibraryManager: ObservableObject {
+public class LibraryManager: ObservableObject, LibraryManaging {
     public static let shared = LibraryManager()
 
     @Published public private(set) var items: [LibraryItem] = []

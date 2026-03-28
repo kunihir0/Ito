@@ -76,15 +76,15 @@ public struct SharedHeroHeader: View {
                     if let image = state.image {
                         image.resizable().aspectRatio(contentMode: .fill)
                     } else if state.error != nil {
-                        Color(.secondarySystemFill)
+                        Color.itoCardBackground
                     } else {
-                        Color(.secondarySystemFill).overlay(ProgressView().tint(.white))
+                        Color.itoCardBackground.overlay(ProgressView().tint(.white))
                     }
                 }
                 .processors([.resize(width: 400)])
             } else {
                 ZStack {
-                    Color(.secondarySystemFill)
+                    Color.itoCardBackground
                     Image(systemName: "photo.on.rectangle.angled").foregroundStyle(.tertiary)
                 }
             }

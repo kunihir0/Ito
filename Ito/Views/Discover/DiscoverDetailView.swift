@@ -38,14 +38,20 @@ struct DiscoverDetailView: View {
 
     private var cleanDescription: String? {
         guard let desc = media.description, !desc.isEmpty else { return nil }
-        return stripHTMLDiscover(desc)
+        return desc.strippingHTML()
     }
 
     var body: some View {
         GeometryReader { outerGeo in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    heroHeader(screenWidth: outerGeo.size.width)
+                    SharedHeroHeader(
+                        title: media.title,
+                        coverURL: media.bannerImage ?? media.coverImage,
+                        authorOrStudio: media.titleRomaji != media.title ? media.titleRomaji : nil,
+                        statusLabel: media.status?.replacingOccurrences(of: "_", with: " ").capitalized,
+                        pluginId: media.averageScore != nil ? "★ \(media.averageScore!)%" : (media.format?.replacingOccurrences(of: "_", with: " ") ?? "Discover")
+                    )
                         .background(
                             GeometryReader { geo in
                                 Color.clear.preference(
@@ -76,117 +82,6 @@ struct DiscoverDetailView: View {
         .task {
             if let fetched = try? await DiscoverManager.shared.fetchMediaDetails(id: media.id) {
                 await MainActor.run { self.media = fetched }
-            }
-        }
-    }
-
-    // MARK: - Hero Header
-
-    private func heroHeader(screenWidth: CGFloat) -> some View {
-        ZStack(alignment: .bottom) {
-            coverBackground(screenWidth: screenWidth)
-            LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: .clear, location: 0.0),
-                    .init(color: .black.opacity(0.15), location: 0.4),
-                    .init(color: .black.opacity(0.72), location: 1.0)
-                ]),
-                startPoint: .top, endPoint: .bottom
-            )
-            .ignoresSafeArea(edges: .top)
-
-            HStack(alignment: .bottom, spacing: 14) {
-                sharpCoverView
-                heroMetadata
-                    .padding(.bottom, 20)
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
-        }
-        .frame(width: screenWidth, height: detailHeroHeight)
-        .clipped()
-        .ignoresSafeArea(edges: .top)
-    }
-
-    @ViewBuilder
-    private func coverBackground(screenWidth: CGFloat) -> some View {
-        let bgURL = media.bannerImage ?? media.coverImage
-        if let urlStr = bgURL, let url = URL(string: urlStr) {
-            LazyImage(url: url) { state in
-                if let image = state.image {
-                    image.resizable().aspectRatio(contentMode: .fill)
-                        .blur(radius: 10, opaque: true)
-                } else {
-                    Color(.secondarySystemBackground)
-                }
-            }
-            .processors([.resize(width: 400)])
-            .frame(width: screenWidth, height: detailHeroHeight)
-            .clipped()
-            .ignoresSafeArea(edges: .top)
-            .overlay(Color.black.opacity(0.35))
-        } else {
-            Color(.secondarySystemBackground)
-                .frame(height: detailHeroHeight)
-                .ignoresSafeArea(edges: .top)
-        }
-    }
-
-    private var sharpCoverView: some View {
-        Group {
-            if let coverURL = media.coverImage, let url = URL(string: coverURL) {
-                LazyImage(url: url) { state in
-                    if let image = state.image {
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } else if state.error != nil {
-                        Color(.secondarySystemFill)
-                    } else {
-                        Color(.secondarySystemFill).overlay(ProgressView().tint(.white))
-                    }
-                }
-                .processors([.resize(width: 400)])
-            } else {
-                ZStack {
-                    Color(.secondarySystemFill)
-                    Image(systemName: "photo.on.rectangle.angled").foregroundStyle(.tertiary)
-                }
-            }
-        }
-        .frame(width: 130, height: 195)
-        .cornerRadius(10)
-        .clipped()
-        .shadow(color: .black.opacity(0.5), radius: 14, x: 0, y: 6)
-    }
-
-    // MARK: - Hero Metadata
-
-    private var heroMetadata: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(media.title)
-                .font(.title2.weight(.bold))
-                .foregroundColor(.white)
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-                .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 1)
-
-            if let romaji = media.titleRomaji, romaji != media.title, !romaji.isEmpty {
-                Text(romaji)
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            HStack(spacing: 6) {
-                if let format = media.format {
-                    DiscoverHeroBadge(label: format.replacingOccurrences(of: "_", with: " "))
-                }
-                if let status = media.status {
-                    DiscoverHeroBadge(label: status.replacingOccurrences(of: "_", with: " ").capitalized)
-                }
-                if let score = media.averageScore {
-                    DiscoverHeroBadge(label: "★ \(score)%")
-                }
             }
         }
     }
@@ -253,7 +148,7 @@ struct DiscoverDetailView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(Color(.secondarySystemFill))
+        .background(Color.itoCardBackground)
         .cornerRadius(10)
     }
 
@@ -388,7 +283,7 @@ struct DiscoverDetailView: View {
                                 title: manga.title,
                                 cover: manga.cover,
                                 subtitle: manga.authors?.joined(separator: ", "),
-                                destination: AnyView(MangaView(runner: runner, manga: manga, pluginId: pluginId))
+                                destination: AnyView(MediaDetailView(runner: runner, media: manga, pluginId: pluginId) { try await runner.getMangaUpdate(manga: $0) })
                             )
                         }
                         self.isSearchingPlugin = false
@@ -402,7 +297,7 @@ struct DiscoverDetailView: View {
                                 title: anime.title,
                                 cover: anime.cover,
                                 subtitle: anime.studios?.joined(separator: ", "),
-                                destination: AnyView(AnimeView(runner: runner, anime: anime, pluginId: pluginId))
+                                destination: AnyView(MediaDetailView(runner: runner, media: anime, pluginId: pluginId) { try await runner.getAnimeUpdate(anime: $0, needsDetails: true, needsEpisodes: true) })
                             )
                         }
                         self.isSearchingPlugin = false
@@ -416,7 +311,7 @@ struct DiscoverDetailView: View {
                                 title: novel.title,
                                 cover: novel.cover,
                                 subtitle: novel.authors?.joined(separator: ", "),
-                                destination: AnyView(NovelView(runner: runner, novel: novel, pluginId: pluginId))
+                                destination: AnyView(MediaDetailView(runner: runner, media: novel, pluginId: pluginId) { try await runner.getNovelUpdate(novel: $0) })
                             )
                         }
                         self.isSearchingPlugin = false
@@ -467,9 +362,9 @@ private struct DiscoverRecommendationCard: View {
                     if let image = state.image {
                         image.resizable().aspectRatio(contentMode: .fill)
                     } else if state.error != nil {
-                        Color(.secondarySystemFill)
+                        Color.itoCardBackground
                     } else {
-                        Color(.secondarySystemFill).overlay(ProgressView().tint(.gray))
+                        Color.itoCardBackground.overlay(ProgressView().tint(.gray))
                     }
                 }
                 .processors([.resize(width: 200)])
@@ -478,7 +373,7 @@ private struct DiscoverRecommendationCard: View {
                 .clipped()
             } else {
                 ZStack {
-                    Color(.secondarySystemFill)
+                    Color.itoCardBackground
                     Image(systemName: "photo.on.rectangle.angled").foregroundStyle(.tertiary)
                 }
                 .frame(width: 110, height: 160)
@@ -557,7 +452,7 @@ private struct PluginSourceRow: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(isSelected ? Color(.secondarySystemFill) : Color.clear)
+            .background(isSelected ? Color.itoCardBackground : Color.clear)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -576,7 +471,7 @@ private struct PluginResultRow: View {
                     if let image = state.image {
                         image.resizable().aspectRatio(contentMode: .fill)
                     } else {
-                        Color(.secondarySystemFill)
+                        Color.itoCardBackground
                     }
                 }
                 .processors([.resize(width: 100)])
@@ -584,7 +479,7 @@ private struct PluginResultRow: View {
                 .cornerRadius(8)
                 .clipped()
             } else {
-                Color(.secondarySystemFill)
+                Color.itoCardBackground
                     .frame(width: 50, height: 72)
                     .cornerRadius(8)
             }
@@ -611,34 +506,4 @@ private struct PluginResultRow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
     }
-}
-
-// MARK: - Hero Badge
-
-private struct DiscoverHeroBadge: View {
-    let label: String
-    var body: some View {
-        Text(label).font(.caption2.weight(.medium))
-            .padding(.horizontal, 8).padding(.vertical, 3)
-            .background(.white.opacity(0.2)).foregroundColor(.white).cornerRadius(6)
-    }
-}
-
-// MARK: - Helpers
-
-private func stripHTMLDiscover(_ string: String) -> String {
-    var result = string
-    if let regex = try? NSRegularExpression(pattern: "<[^>]+>", options: []) {
-        let range = NSRange(result.startIndex..., in: result)
-        result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
-    }
-    let entities: [(String, String)] = [
-        ("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"),
-        ("&quot;", "\""), ("&#39;", "'"), ("&nbsp;", " "),
-        ("<br>", "\n"), ("<br/>", "\n"), ("<br />", "\n")
-    ]
-    for (entity, replacement) in entities {
-        result = result.replacingOccurrences(of: entity, with: replacement)
-    }
-    return result.trimmingCharacters(in: .whitespacesAndNewlines)
 }

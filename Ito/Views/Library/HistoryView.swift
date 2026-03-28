@@ -73,17 +73,17 @@ struct HistoryItemRow: View {
                     if let image = state.image {
                         image.resizable().aspectRatio(contentMode: .fill)
                     } else if state.error != nil {
-                        Color(.secondarySystemFill)
+                        Color.itoCardBackground
                             .overlay(Image(systemName: "photo.slash").foregroundStyle(.tertiary))
                     } else {
-                        Color(.secondarySystemFill)
+                        Color.itoCardBackground
                     }
                 }
                 .frame(width: 50, height: 75)
                 .cornerRadius(6)
                 .clipped()
             } else {
-                Color(.secondarySystemFill)
+                Color.itoCardBackground
                     .frame(width: 50, height: 75)
                     .cornerRadius(6)
                     .overlay(Image(systemName: "photo.on.rectangle.angled").foregroundStyle(.tertiary))

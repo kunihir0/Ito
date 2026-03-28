@@ -1,0 +1,85 @@
+import SwiftUI
+import ito_runner
+
+public struct ChapterRowView<C: ChapterDisplayable>: View {
+    let chapter: C
+    let isRead: Bool
+    let onTap: () -> Void
+
+    @State private var isPressed = false
+
+    public init(chapter: C, isRead: Bool, onTap: @escaping () -> Void) {
+        self.chapter = chapter
+        self.isRead = isRead
+        self.onTap = onTap
+    }
+
+    public var body: some View {
+        Button(action: onTap) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    chapterTitle
+                    chapterSubtitle
+                }
+                Spacer()
+                trailingIcon
+            }
+            .padding(.horizontal, 16).padding(.vertical, 12)
+            .background(isPressed ? Color(.systemFill) : Color(.systemBackground))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressRecordingButtonStyle(isPressed: $isPressed))
+    }
+
+    @ViewBuilder
+    private var chapterTitle: some View {
+        if let title = chapter.title, !title.isEmpty {
+            Text(title).font(.subheadline)
+                .fontWeight(isRead ? .regular : .semibold)
+                .foregroundStyle(isRead ? Color.secondary : Color.primary)
+                .lineLimit(2)
+        } else if let num = chapter.chapterNumber {
+            let isWhole = num.truncatingRemainder(dividingBy: 1) == 0
+            Text("\(chapter is Anime.Episode ? "Episode" : "Chapter") \(isWhole ? String(Int(num)) : String(num))")
+                .font(.subheadline)
+                .fontWeight(isRead ? .regular : .semibold)
+                .foregroundStyle(isRead ? Color.secondary : Color.primary)
+                .lineLimit(1)
+        } else {
+            Text("\(chapter is Anime.Episode ? "Episode" : "Chapter") —").font(.subheadline).fontWeight(.regular).foregroundStyle(Color.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var chapterSubtitle: some View {
+        HStack(spacing: 4) {
+            if let dateUpload = chapter.dateUpload {
+                Text(dateUpload)
+                    .font(.caption).foregroundStyle(Color.secondary)
+            }
+            if let scanlator = chapter.scanlator, !scanlator.isEmpty {
+                if chapter.dateUpload != nil {
+                    Text("·").font(.caption).foregroundStyle(Color.secondary)
+                }
+                Text(scanlator)
+                    .font(chapter is Anime.Episode ? .caption2.weight(.semibold) : .caption)
+                    .foregroundStyle(Color.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var trailingIcon: some View {
+        if chapter.isPaywalled {
+            Image(systemName: "lock.fill").font(.caption).foregroundStyle(.yellow)
+                .padding(6).background(Color.yellow.opacity(0.15)).clipShape(Circle())
+        } else if isRead {
+            Image(systemName: "checkmark.circle.fill").font(chapter is Anime.Episode ? .title3 : .subheadline).foregroundStyle(Color.secondary)
+        } else if chapter is Anime.Episode {
+             Image(systemName: "play.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(Color.blue)
+        }
+    }
+}

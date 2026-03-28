@@ -380,55 +380,10 @@ struct LibraryItemView: View {
 
     private func coverPlaceholder(icon: String) -> some View {
         ZStack {
-            Color(.secondarySystemFill)
+            Color.itoCardBackground
             Image(systemName: icon)
                 .font(.title3)
                 .foregroundStyle(.tertiary)
-        }
-    }
-}
-
-// MARK: - Pressable Button Style
-
-/// Gives NavigationLink a native-feeling scale press without losing the tap highlight.
-struct PressableButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
-            .animation(.easeInOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
-
-// MARK: - Shimmer Loading View
-
-struct ShimmerView: View {
-    @State private var phase: CGFloat = -1.0
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                Color(.secondarySystemFill)
-
-                LinearGradient(
-                    gradient: Gradient(stops: [
-                        .init(color: .clear, location: 0.0),
-                        .init(color: Color.white.opacity(0.25), location: 0.45),
-                        .init(color: Color.white.opacity(0.25), location: 0.55),
-                        .init(color: .clear, location: 1.0)
-                    ]),
-                    startPoint: UnitPoint(x: phase, y: 0.5),
-                    endPoint: UnitPoint(x: phase + 0.6, y: 0.5)
-                )
-                .frame(width: geo.size.width, height: geo.size.height)
-            }
-        }
-        .onAppear {
-            withAnimation(
-                .linear(duration: 1.3)
-                .repeatForever(autoreverses: false)
-            ) {
-                phase = 1.4
-            }
         }
     }
 }
@@ -474,19 +429,19 @@ struct DeferredPluginView: View {
         switch item.effectiveType {
         case .anime:
             if let anime = decodedAnime {
-                AnimeView(runner: runner, anime: anime, pluginId: item.pluginId)
+                MediaDetailView(runner: runner, media: anime, pluginId: item.pluginId) { try await runner.getAnimeUpdate(anime: $0, needsDetails: true, needsEpisodes: true) }
             } else {
                 errorView("Failed to decode the saved anime data.")
             }
         case .manga:
             if let manga = decodedManga {
-                MangaView(runner: runner, manga: manga, pluginId: item.pluginId)
+                MediaDetailView(runner: runner, media: manga, pluginId: item.pluginId) { try await runner.getMangaUpdate(manga: $0) }
             } else {
                 errorView("Failed to decode the saved manga data.")
             }
         case .novel:
             if let novel = decodedNovel {
-                NovelView(runner: runner, novel: novel, pluginId: item.pluginId)
+                MediaDetailView(runner: runner, media: novel, pluginId: item.pluginId) { try await runner.getNovelUpdate(novel: $0) }
             } else {
                 errorView("Failed to decode the saved novel data.")
             }

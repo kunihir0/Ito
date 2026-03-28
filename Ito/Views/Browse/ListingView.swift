@@ -28,7 +28,9 @@ struct ListingView: View {
                     switch plugin.info.type {
                     case .anime:
                         ForEach(animes, id: \.key) { anime in
-                            AnimeRowView(anime: anime, plugin: plugin, runner: runner)
+                            MediaRowView(media: anime) {
+                                MediaDetailView(runner: runner, media: anime, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await runner.getAnimeUpdate(anime: $0, needsDetails: true, needsEpisodes: true) }
+                            }
                                 .onAppear {
                                     if anime.key == animes.last?.key && hasNextPage && !isLoading {
                                         loadData()
@@ -37,7 +39,9 @@ struct ListingView: View {
                         }
                     case .manga:
                         ForEach(mangas, id: \.key) { manga in
-                            MangaRowView(manga: manga, plugin: plugin, runner: runner)
+                            MediaRowView(media: manga) {
+                                MediaDetailView(runner: runner, media: manga, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await runner.getMangaUpdate(manga: $0) }
+                            }
                                 .onAppear {
                                     if manga.key == mangas.last?.key && hasNextPage && !isLoading {
                                         loadData()
@@ -46,7 +50,9 @@ struct ListingView: View {
                         }
                     case .novel:
                         ForEach(novels, id: \.key) { novel in
-                            NovelRowView(novel: novel, plugin: plugin, runner: runner)
+                            MediaRowView(media: novel) {
+                                MediaDetailView(runner: runner, media: novel, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await runner.getNovelUpdate(novel: $0) }
+                            }
                                 .onAppear {
                                     if novel.key == novels.last?.key && hasNextPage && !isLoading {
                                         loadData()

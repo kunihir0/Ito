@@ -362,7 +362,7 @@ struct DiscoverCardView: View {
                             image.resizable().aspectRatio(contentMode: .fill)
                         } else {
                             // Skeleton loading state instead of spinner
-                            Color(.secondarySystemFill)
+                            Color.itoCardBackground
                                 .opacity(state.isLoading ? 0.5 : 1.0)
                         }
                     }
@@ -374,7 +374,7 @@ struct DiscoverCardView: View {
                     .cornerRadius(10)
                     .clipped()
                 } else {
-                    Color(.secondarySystemFill)
+                    Color.itoCardBackground
                         .frame(width: 120, height: 170)
                         .cornerRadius(10)
                 }
@@ -419,7 +419,7 @@ struct DiscoverSearchRow: View {
                     if let image = state.image {
                         image.resizable().aspectRatio(contentMode: .fill)
                     } else {
-                        Color(.secondarySystemFill)
+                        Color.itoCardBackground
                             .opacity(state.isLoading ? 0.5 : 1.0)
                     }
                 }
@@ -430,7 +430,7 @@ struct DiscoverSearchRow: View {
                 .frame(width: 60, height: 85)
                 .cornerRadius(8)
             } else {
-                Color(.secondarySystemFill)
+                Color.itoCardBackground
                     .frame(width: 60, height: 85)
                     .cornerRadius(8)
             }

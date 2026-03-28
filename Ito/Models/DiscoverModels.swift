@@ -1,0 +1,67 @@
+import Foundation
+
+public struct DiscoverMedia: Identifiable, Codable, Hashable, Sendable {
+    public let id: Int
+    public let title: String
+    public let titleRomaji: String?
+    public let coverImage: String?
+    public let bannerImage: String?
+    public let format: String?
+    public let status: String?
+    public let description: String?
+    public let cleanDescription: String?
+    public let genres: [String]?
+    public let averageScore: Int?
+    public let episodes: Int?
+    public let chapters: Int?
+    public let season: String?
+    public let seasonYear: Int?
+    public let type: String
+    public let recommendations: [DiscoverMedia]?
+}
+
+public struct DiscoverTag: Identifiable, Codable, Hashable, Sendable {
+    public let id: Int
+    public let name: String
+    public let description: String?
+    public let category: String?
+    public let isAdult: Bool?
+}
+
+public enum DiscoverMediaType: String, CaseIterable, Sendable {
+    case anime = "ANIME"
+    case manga = "MANGA"
+}
+
+public enum DiscoverSort: String, CaseIterable, Sendable {
+    case trending = "TRENDING_DESC"
+    case popularity = "POPULARITY_DESC"
+    case score = "SCORE_DESC"
+    case newest = "START_DATE_DESC"
+    case searchMatch = "SEARCH_MATCH"
+
+    public var displayName: String {
+        switch self {
+        case .trending: return "Trending"
+        case .popularity: return "Popular"
+        case .score: return "Top Rated"
+        case .newest: return "Newest"
+        case .searchMatch: return "Best Match"
+        }
+    }
+}
+
+public struct DiscoverFilters: Equatable, Sendable {
+    public var genres: [String] = []
+    public var tags: [String] = []
+    public var format: String?
+    public var status: String?
+    public var countryOfOrigin: String?
+    public var sort: DiscoverSort = .popularity
+
+    public var isEmpty: Bool {
+        genres.isEmpty && tags.isEmpty && format == nil && status == nil && countryOfOrigin == nil
+    }
+
+    public init() {}
+}

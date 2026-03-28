@@ -78,107 +78,115 @@ struct SourceView: View {
 
     @ViewBuilder
     private func renderComponent(_ value: HomeComponentValue) -> some View {
-        switch value {
-        case .scroller(let mangas, _):
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+        if let pluginRunner = runner {
+            switch value {
+            case .scroller(let mangas, _):
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(mangas, id: \.key) { manga in
+                            MediaCardView(media: manga) { MediaDetailView(runner: pluginRunner, media: manga, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await pluginRunner.getMangaUpdate(manga: $0) } }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            case .mangaList(_, _, let mangas, _):
+                VStack {
                     ForEach(mangas, id: \.key) { manga in
-                        MangaCardView(manga: manga, plugin: plugin, runner: runner)
+                        MediaRowView(media: manga) { MediaDetailView(runner: pluginRunner, media: manga, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await pluginRunner.getMangaUpdate(manga: $0) } }
+                        Divider().padding(.leading, 72)
                     }
                 }
-                .padding(.horizontal)
-            }
-        case .mangaList(_, _, let mangas, _):
-            VStack {
-                ForEach(mangas, id: \.key) { manga in
-                    MangaRowView(manga: manga, plugin: plugin, runner: runner)
-                    Divider().padding(.leading, 72)
-                }
-            }
-        case .bigScroller(let mangas, _):
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(mangas, id: \.key) { manga in
-                        MangaBigCardView(manga: manga, plugin: plugin, runner: runner)
+            case .bigScroller(let mangas, _):
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        ForEach(mangas, id: \.key) { manga in
+                            MediaBigCardView(media: manga) { MediaDetailView(runner: pluginRunner, media: manga, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await pluginRunner.getMangaUpdate(manga: $0) } }
+                        }
                     }
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
-            }
-        case .animeScroller(let animes, _):
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+            case .animeScroller(let animes, _):
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(animes, id: \.key) { anime in
+                            MediaCardView(media: anime) { MediaDetailView(runner: pluginRunner, media: anime, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await pluginRunner.getAnimeUpdate(anime: $0, needsDetails: true, needsEpisodes: true) } }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            case .animeList(_, _, let animes, _):
+                VStack {
                     ForEach(animes, id: \.key) { anime in
-                        AnimeCardView(anime: anime, plugin: plugin, runner: runner)
+                        MediaRowView(media: anime) { MediaDetailView(runner: pluginRunner, media: anime, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await pluginRunner.getAnimeUpdate(anime: $0, needsDetails: true, needsEpisodes: true) } }
+                        Divider().padding(.leading, 72)
                     }
                 }
-                .padding(.horizontal)
-            }
-        case .animeList(_, _, let animes, _):
-            VStack {
-                ForEach(animes, id: \.key) { anime in
-                    AnimeRowView(anime: anime, plugin: plugin, runner: runner)
-                    Divider().padding(.leading, 72)
-                }
-            }
-        case .animeBigScroller(let animes, _):
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(animes, id: \.key) { anime in
-                        AnimeBigCardView(anime: anime, plugin: plugin, runner: runner)
+            case .animeBigScroller(let animes, _):
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        ForEach(animes, id: \.key) { anime in
+                            MediaBigCardView(media: anime) { MediaDetailView(runner: pluginRunner, media: anime, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await pluginRunner.getAnimeUpdate(anime: $0, needsDetails: true, needsEpisodes: true) } }
+                        }
                     }
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
-            }
-        case .novelScroller(let novels, _):
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+            case .novelScroller(let novels, _):
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(novels, id: \.key) { novel in
+                            MediaCardView(media: novel) { MediaDetailView(runner: pluginRunner, media: novel, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await pluginRunner.getNovelUpdate(novel: $0) } }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            case .novelList(_, _, let novels, _):
+                VStack {
                     ForEach(novels, id: \.key) { novel in
-                        NovelCardView(novel: novel, plugin: plugin, runner: runner)
+                        MediaRowView(media: novel) { MediaDetailView(runner: pluginRunner, media: novel, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await pluginRunner.getNovelUpdate(novel: $0) } }
+                        Divider().padding(.leading, 72)
                     }
                 }
-                .padding(.horizontal)
-            }
-        case .novelList(_, _, let novels, _):
-            VStack {
-                ForEach(novels, id: \.key) { novel in
-                    NovelRowView(novel: novel, plugin: plugin, runner: runner)
-                    Divider().padding(.leading, 72)
-                }
-            }
-        case .novelBigScroller(let novels, _):
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(novels, id: \.key) { novel in
-                        NovelBigCardView(novel: novel, plugin: plugin, runner: runner)
+            case .novelBigScroller(let novels, _):
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        ForEach(novels, id: \.key) { novel in
+                            MediaBigCardView(media: novel) { MediaDetailView(runner: pluginRunner, media: novel, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await pluginRunner.getNovelUpdate(novel: $0) } }
+                        }
                     }
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
+            default:
+                Text("Unsupported component type.")
+                    .foregroundColor(.secondary)
+                    .padding()
             }
-        default:
-            Text("Unsupported component type.")
-                .foregroundColor(.secondary)
-                .padding()
+        } else {
+            EmptyView()
         }
     }
 
     @ViewBuilder
     private func renderSearchList() -> some View {
-        switch plugin.info.type {
-        case .anime:
-            List(searchAnimes, id: \.key) { anime in
-                AnimeRowView(anime: anime, plugin: plugin, runner: runner)
+        if let pluginRunner = runner {
+            switch plugin.info.type {
+            case .anime:
+                List(searchAnimes, id: \.key) { anime in
+                    MediaRowView(media: anime) { MediaDetailView(runner: pluginRunner, media: anime, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await pluginRunner.getAnimeUpdate(anime: $0, needsDetails: true, needsEpisodes: true) } }
+                }
+                .listStyle(.plain)
+            case .manga:
+                List(searchMangas, id: \.key) { manga in
+                    MediaRowView(media: manga) { MediaDetailView(runner: pluginRunner, media: manga, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await pluginRunner.getMangaUpdate(manga: $0) } }
+                }
+                .listStyle(.plain)
+            case .novel:
+                List(searchNovels, id: \.key) { novel in
+                    MediaRowView(media: novel) { MediaDetailView(runner: pluginRunner, media: novel, pluginId: plugin.url.deletingPathExtension().lastPathComponent) { try await pluginRunner.getNovelUpdate(novel: $0) } }
+                }
+                .listStyle(.plain)
             }
-            .listStyle(.plain)
-        case .manga:
-            List(searchMangas, id: \.key) { manga in
-                MangaRowView(manga: manga, plugin: plugin, runner: runner)
-            }
-            .listStyle(.plain)
-        case .novel:
-            List(searchNovels, id: \.key) { novel in
-                NovelRowView(novel: novel, plugin: plugin, runner: runner)
-            }
-            .listStyle(.plain)
+        } else {
+            EmptyView()
         }
     }
 

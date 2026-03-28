@@ -5,7 +5,7 @@ import SwiftUI
 /// Manages reading progress, tracking which chapters have been read,
 /// and the last read chapter per manga.
 @MainActor
-public class ReadProgressManager: ObservableObject {
+public class ReadProgressManager: ObservableObject, ProgressTracking {
     public static let shared = ReadProgressManager()
 
     // keys: manga ID, values: set of chapter IDs
