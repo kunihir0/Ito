@@ -49,7 +49,7 @@ struct DiscoverDetailView: View {
                     coverURL: media.bannerImage ?? media.coverImage,
                     authorOrStudio: media.titleRomaji != media.title ? media.titleRomaji : nil,
                     statusLabel: media.status?.replacingOccurrences(of: "_", with: " ").capitalized,
-                    // Hero header background is now self-constrained and padded to offset blur
+                    pluginId: media.averageScore != nil ? "★ \(media.averageScore!)%" : (media.format?.replacingOccurrences(of: "_", with: " ") ?? "Discover")
                 )
                 .background(
                     GeometryReader { geo in
