@@ -41,7 +41,9 @@ public struct SharedHeroHeader: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
         }
+        .frame(maxWidth: UIScreen.main.bounds.width)
         .frame(height: heroHeight)
+        .clipped()
         .ignoresSafeArea(edges: .top)
     }
 
@@ -51,14 +53,15 @@ public struct SharedHeroHeader: View {
             LazyImage(url: url) { state in
                 if let image = state.image {
                     image.resizable().aspectRatio(contentMode: .fill)
-                        .blur(radius: 28, opaque: true)
                 } else {
                     Color(.secondarySystemBackground)
                 }
             }
             .processors([.resize(width: 400)])
-            .frame(maxWidth: .infinity)
-            .frame(height: heroHeight)
+            .frame(maxWidth: UIScreen.main.bounds.width, maxHeight: heroHeight)
+            .blur(radius: 28, opaque: true)
+            .padding(-28)
+            .frame(maxWidth: UIScreen.main.bounds.width, maxHeight: heroHeight)
             .clipped()
             .ignoresSafeArea(edges: .top)
             .overlay(Color.black.opacity(0.35))

@@ -42,29 +42,28 @@ struct DiscoverDetailView: View {
     }
 
     var body: some View {
-        GeometryReader { outerGeo in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    SharedHeroHeader(
-                        title: media.title,
-                        coverURL: media.bannerImage ?? media.coverImage,
-                        authorOrStudio: media.titleRomaji != media.title ? media.titleRomaji : nil,
-                        statusLabel: media.status?.replacingOccurrences(of: "_", with: " ").capitalized,
-                        pluginId: media.averageScore != nil ? "★ \(media.averageScore!)%" : (media.format?.replacingOccurrences(of: "_", with: " ") ?? "Discover")
-                    )
-                        .background(
-                            GeometryReader { geo in
-                                Color.clear.preference(
-                                    key: DetailNavTitleKey.self,
-                                    value: geo.frame(in: .global).maxY < 0
-                                )
-                            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                SharedHeroHeader(
+                    title: media.title,
+                    coverURL: media.bannerImage ?? media.coverImage,
+                    authorOrStudio: media.titleRomaji != media.title ? media.titleRomaji : nil,
+                    statusLabel: media.status?.replacingOccurrences(of: "_", with: " ").capitalized,
+                    // Hero header background is now self-constrained and padded to offset blur
+                )
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: DetailNavTitleKey.self,
+                            value: geo.frame(in: .global).maxY < 0
                         )
-                    contentSection
-                }
-                .frame(width: outerGeo.size.width)
+                    }
+                )
+
+                contentSection
             }
         }
+        .coordinateSpace(name: "scroll")
         .onPreferenceChange(DetailNavTitleKey.self) { heroGone in
             withAnimation(.easeInOut(duration: 0.18)) { showNavTitle = heroGone }
         }
@@ -136,6 +135,7 @@ struct DiscoverDetailView: View {
             }
             .padding(.horizontal, 16)
         }
+        .frame(maxWidth: UIScreen.main.bounds.width)
     }
 
     private func infoChip(label: String, value: String) -> some View {
@@ -166,6 +166,7 @@ struct DiscoverDetailView: View {
             }
             .padding(.horizontal, 16)
         }
+        .frame(maxWidth: UIScreen.main.bounds.width)
     }
 
     // MARK: - Description
@@ -175,6 +176,7 @@ struct DiscoverDetailView: View {
             Text(text)
                 .font(.subheadline).foregroundStyle(.primary)
                 .lineLimit(isDescriptionExpanded ? nil : 3)
+                .fixedSize(horizontal: false, vertical: true)
                 .animation(.easeInOut(duration: 0.2), value: isDescriptionExpanded)
 
             Button {
@@ -207,9 +209,11 @@ struct DiscoverDetailView: View {
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
+                .padding(.horizontal, 16)
             } else {
                 VStack(spacing: 0) {
                     ForEach(matchingPlugins, id: \.id) { plugin in
@@ -347,6 +351,7 @@ struct DiscoverDetailView: View {
             }
         }
         .padding(.top, 8)
+        .frame(maxWidth: UIScreen.main.bounds.width)
     }
 }
 
