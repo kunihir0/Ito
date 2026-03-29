@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 public actor DiscoverService {
     public static let shared = DiscoverService()

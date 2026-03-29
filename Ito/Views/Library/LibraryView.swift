@@ -6,8 +6,9 @@ import ito_runner
 // MARK: - LibraryGroup (avoids tuple inference issues with ForEach)
 
 private struct LibraryGroup: Identifiable {
-    let id: String          // section label, e.g. "Anime"
-    let icon: String        // SF Symbol name
+    let id: String          // category id
+    let name: String        // category name
+    let isSystem: Bool
     let items: [LibraryItem]
 }
 
@@ -16,26 +17,23 @@ private struct LibraryGroup: Identifiable {
 struct LibraryView: View {
     @StateObject private var libraryManager = LibraryManager.shared
     @StateObject private var updateManager = UpdateManager.shared
+
+    @AppStorage(UserDefaultsKeys.layoutStyle) private var rawLayoutStyle: Int = LibraryLayoutStyle.sectioned.rawValue
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     @State private var searchText = ""
     @State private var isEditing = false
+    @State private var selectedCategoryId: String? // nil means "All"
+
+    @State private var itemToCategorize: String?
+
+    private var layoutStyle: LibraryLayoutStyle {
+        LibraryLayoutStyle(rawValue: rawLayoutStyle) ?? .sectioned
+    }
 
     private let columns = [
         GridItem(.adaptive(minimum: 100, maximum: 140), spacing: 12)
     ]
-
-    // Group items by type, preserving a fixed display order.
-    // Relies only on effectiveType case matching — no external MediaType reference needed.
-    private var groupedItems: [LibraryGroup] {
-        let order: [(label: String, icon: String, match: (LibraryItem) -> Bool)] = [
-            ("Anime", "play.tv", { $0.effectiveType == .anime }),
-            ("Manga", "book.closed", { $0.effectiveType == .manga }),
-            ("Novels", "doc.text", { $0.effectiveType == .novel })
-        ]
-        return order.compactMap { label, icon, match in
-            let filtered = filteredItems.filter(match)
-            return filtered.isEmpty ? nil : LibraryGroup(id: label, icon: icon, items: filtered)
-        }
-    }
 
     private var filteredItems: [LibraryItem] {
         guard !searchText.isEmpty else { return libraryManager.items }
@@ -44,17 +42,36 @@ struct LibraryView: View {
         }
     }
 
+    private var currentGroupedItems: [LibraryGroup] {
+        let allLinks = libraryManager.links
+
+        return libraryManager.categories.compactMap { cat in
+            let itemIds = allLinks.filter { $0.categoryId == cat.id }.map { $0.itemId }
+            let itemsForCat = filteredItems.filter { itemIds.contains($0.id) }
+
+            // In tabbed mode, if a category is selected and it's not this one, skip
+            if layoutStyle == .tabbed, let selected = selectedCategoryId, selected != cat.id {
+                return nil
+            }
+
+            // In sectioned mode, don't show empty categories unless it's the only one
+            if layoutStyle == .sectioned && itemsForCat.isEmpty && libraryManager.categories.count > 1 {
+                return nil
+            }
+
+            return LibraryGroup(id: cat.id, name: cat.name, isSystem: cat.isSystemCategory, items: itemsForCat)
+        }
+    }
+
     var body: some View {
         NavigationView {
             ZStack(alignment: .top) {
-                Group {
-                    if libraryManager.items.isEmpty {
-                        emptyStateView
-                    } else if !searchText.isEmpty && filteredItems.isEmpty {
-                        noResultsView
-                    } else {
-                        contentScrollView
-                    }
+                if libraryManager.isLoading {
+                    loadingSkeletonView
+                } else if libraryManager.items.isEmpty {
+                    emptyStateView
+                } else {
+                    mainContentView
                 }
 
                 // Determinate Progress Banner
@@ -80,32 +97,121 @@ struct LibraryView: View {
 
     // MARK: Content
 
+    private var mainContentView: some View {
+        VStack(spacing: 0) {
+            if layoutStyle == .tabbed {
+                pillBar
+                Divider()
+            }
+
+            if !searchText.isEmpty && currentGroupedItems.allSatisfy({ $0.items.isEmpty }) {
+                noResultsView
+            } else {
+                contentScrollView
+            }
+        }
+    }
+
     private var contentScrollView: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
-                ForEach(groupedItems) { group in
+                if layoutStyle == .tabbed && selectedCategoryId == nil {
+                    // "All" view
                     Section {
                         LazyVGrid(columns: columns, spacing: 14) {
-                            ForEach(group.items) { item in
-                                LibraryItemView(item: item, isEditing: isEditing)
+                            ForEach(filteredItems) { item in
+                                LibraryItemView(item: item, isEditing: isEditing) {
+                                    itemToCategorize = item.id
+                                }
                             }
                         }
                         .padding(.horizontal, 16)
                         .padding(.bottom, 24)
-                    } header: {
-                        SectionHeaderView(
-                            label: group.id,
-                            icon: group.icon,
-                            count: group.items.count
-                        )
+                    }
+                } else {
+                    ForEach(currentGroupedItems) { group in
+                        Section {
+                            if group.items.isEmpty {
+                                actionableEmptyState(for: group.name)
+                            } else {
+                                LazyVGrid(columns: columns, spacing: 14) {
+                                    ForEach(group.items) { item in
+                                        LibraryItemView(item: item, isEditing: isEditing) {
+                                            itemToCategorize = item.id
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 24)
+                            }
+                        } header: {
+                            if layoutStyle == .sectioned {
+                                SectionHeaderView(
+                                    label: group.name,
+                                    icon: group.isSystem ? "tray" : "folder",
+                                    count: group.items.count
+                                )
+                            }
+                        }
                     }
                 }
             }
-            .padding(.top, 4)
+            .padding(.top, layoutStyle == .sectioned ? 4 : 16)
             .padding(.bottom, 16)
         }
         .refreshable {
             await updateManager.checkForUpdates()
+        }
+        .sheet(item: Binding(
+            get: { itemToCategorize.map { SheetIdentifiable(id: $0) } },
+            set: { itemToCategorize = $0?.id }
+        )) { wrapper in
+            CategoryAssignmentSheet(itemId: wrapper.id)
+        }
+    }
+
+    // MARK: Pill Bar
+
+    @ViewBuilder
+    private var pillBar: some View {
+        if dynamicTypeSize >= .accessibility1 {
+            Picker("Category", selection: $selectedCategoryId) {
+                Text("All").tag(String?.none)
+                ForEach(libraryManager.categories) { cat in
+                    Text(cat.name).tag(String?.some(cat.id))
+                }
+            }
+            .pickerStyle(.menu)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    pillButton(title: "All", id: nil)
+                    ForEach(libraryManager.categories) { cat in
+                        pillButton(title: cat.name, id: cat.id)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+            }
+        }
+    }
+
+    private func pillButton(title: String, id: String?) -> some View {
+        let isSelected = selectedCategoryId == id
+        return Button {
+            withAnimation(.snappy) {
+                selectedCategoryId = id
+            }
+        } label: {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .padding(.horizontal, 16)
+                .frame(minWidth: 44, minHeight: 44)
+                .background(isSelected ? Color.accentColor : Color(.systemGray5))
+                .foregroundColor(isSelected ? .white : .primary)
+                .clipShape(Capsule())
         }
     }
 
@@ -118,6 +224,7 @@ struct LibraryView: View {
                 NavigationLink(destination: HistoryView()) {
                     Image(systemName: "clock.arrow.circlepath")
                 }
+
                 if !libraryManager.items.isEmpty {
                     Button {
                         Task {
@@ -128,21 +235,54 @@ struct LibraryView: View {
                     }
                     .disabled(updateManager.isRefreshing)
                 }
-            }
-        }
-        ToolbarItem(placement: .navigationBarTrailing) {
-            if !libraryManager.items.isEmpty {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        isEditing.toggle()
-                    }
-                } label: {
-                    Text(isEditing ? "Done" : "Edit")
-                        .font(.body)
-                        .fontWeight(isEditing ? .semibold : .regular)
+
+                NavigationLink(destination: CategorySettingsView()) {
+                    Image(systemName: "folder.badge.gearshape")
+                        .accessibilityLabel("Manage Categories")
                 }
             }
         }
+        ToolbarItem(placement: .navigationBarTrailing) {
+            HStack(spacing: 16) {
+                Button {
+                    withAnimation {
+                        rawLayoutStyle = (layoutStyle == .sectioned) ? LibraryLayoutStyle.tabbed.rawValue : LibraryLayoutStyle.sectioned.rawValue
+                    }
+                } label: {
+                    Image(systemName: layoutStyle == .sectioned ? "rectangle.grid.1x2" : "square.grid.2x2")
+                }
+                .accessibilityLabel("Switch to \(layoutStyle == .sectioned ? "tabbed" : "sectioned") layout")
+
+                if !libraryManager.items.isEmpty {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isEditing.toggle()
+                        }
+                    } label: {
+                        Text(isEditing ? "Done" : "Edit")
+                            .font(.body)
+                            .fontWeight(isEditing ? .semibold : .regular)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Skeleton Loading
+
+    private var loadingSkeletonView: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 14) {
+                ForEach(0..<8, id: \.self) { _ in
+                    let fakeItem = LibraryItem(id: UUID().uuidString, title: "Loading Item Title", coverUrl: nil, pluginId: "", isAnime: false, pluginType: .manga, rawPayload: Data(), anilistId: nil)
+                    LibraryItemView(item: fakeItem, isEditing: false)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+        }
+        .redacted(reason: .placeholder)
+        .allowsHitTesting(false)
     }
 
     // MARK: Empty / No Results States
@@ -163,7 +303,22 @@ struct LibraryView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.bottom, 60) // optical center adjustment
+        .padding(.bottom, 60)
+    }
+
+    private func actionableEmptyState(for categoryName: String) -> some View {
+        VStack(spacing: 14) {
+            Text("No items in \(categoryName).")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Button("Browse Discover") {
+                // Future routing to Discover tab
+            }
+            .font(.subheadline.weight(.semibold))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
     }
 
     private var noResultsView: some View {
@@ -190,7 +345,7 @@ struct LibraryView: View {
 
 struct SectionHeaderView: View {
     let label: String
-    let icon: String   // SF Symbol — resolved by LibraryView, no MediaType needed
+    let icon: String // SF Symbol
     let count: Int
 
     var body: some View {
@@ -213,7 +368,6 @@ struct SectionHeaderView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(
-            // Frosted glass effect using material
             Rectangle()
                 .fill(.background)
                 .ignoresSafeArea(edges: .horizontal)
@@ -226,25 +380,23 @@ struct SectionHeaderView: View {
 struct LibraryItemView: View {
     let item: LibraryItem
     let isEditing: Bool
+    var onAssignCategories: (() -> Void)?
 
     @ObservedObject private var pluginManager = PluginManager.shared
     @StateObject private var updateManager = UpdateManager.shared
     @State private var wiggleAngle: Double = Double.random(in: -1.2...1.2)
-    // Separate from isEditing so repeatForever never causes isEditing to re-diff
     @State private var isWiggling: Bool = false
 
     private var isPluginInstalled: Bool {
         pluginManager.installedPlugins[item.pluginId] != nil
     }
 
-    // Checks if we have an unread badge to show
     private var badgeCount: Int {
         updateManager.unreadCounts[item.id] ?? 0
     }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // Main card tappable area
             NavigationLink(destination: DeferredPluginView(item: item)) {
                 cardContent
                     .contentShape(Rectangle())
@@ -252,6 +404,12 @@ struct LibraryItemView: View {
             .buttonStyle(PressableButtonStyle())
             .disabled(isEditing)
             .contextMenu {
+                Button {
+                    onAssignCategories?()
+                } label: {
+                    Label("Add to List...", systemImage: "list.bullet.rectangle")
+                }
+
                 Button(role: .destructive) {
                     LibraryManager.shared.removeItem(withId: item.id)
                 } label: {
@@ -259,7 +417,6 @@ struct LibraryItemView: View {
                 }
             }
 
-            // Edit mode delete badge (top-leading, iOS home screen pattern)
             if isEditing {
                 Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -276,12 +433,9 @@ struct LibraryItemView: View {
                 .zIndex(1)
             }
         }
-        // Wiggle driven by isWiggling, not isEditing — prevents badge flicker
         .rotationEffect(.degrees(isWiggling ? wiggleAngle : 0))
         .animation(
-            isWiggling
-                ? .easeInOut(duration: 0.12).repeatForever(autoreverses: true)
-                : .easeInOut(duration: 0.15),
+            isWiggling ? .easeInOut(duration: 0.12).repeatForever(autoreverses: true) : .easeInOut(duration: 0.15),
             value: isWiggling
         )
         .onChange(of: isEditing) { editing in
@@ -290,8 +444,6 @@ struct LibraryItemView: View {
             }
         }
     }
-
-    // MARK: Card Layout
 
     private var cardContent: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -318,8 +470,6 @@ struct LibraryItemView: View {
         }
     }
 
-    // MARK: Cover Image
-
     private var coverImageView: some View {
         GeometryReader { geo in
             let width = geo.size.width
@@ -331,14 +481,12 @@ struct LibraryItemView: View {
             ZStack(alignment: .topTrailing) {
                 coverContent(width: width, targetSize: targetSize)
 
-                // Non-threatening plugin badge — small, top-trailing
                 if !isPluginInstalled {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.orange, Color(.systemBackground))
                         .padding(5)
                 } else if badgeCount > 0 && !isEditing {
-                    // HIG-compliant Unread Badge
                     Text("\(badgeCount)")
                         .font(.caption2.weight(.bold))
                         .foregroundColor(.white)
@@ -412,7 +560,6 @@ struct DeferredPluginView: View {
             }
         }
         .onAppear {
-            // Guard: don't re-fire if already loaded
             guard runner == nil, errorMessage == nil else { return }
             loadTask = Task { await loadRunnerAndItem() }
         }
@@ -421,8 +568,6 @@ struct DeferredPluginView: View {
             loadTask = nil
         }
     }
-
-    // MARK: Resolved Content
 
     @ViewBuilder
     private func resolvedContentView(runner: ItoRunner) -> some View {
@@ -447,8 +592,6 @@ struct DeferredPluginView: View {
             }
         }
     }
-
-    // MARK: States
 
     private var loadingView: some View {
         VStack(spacing: 14) {
@@ -479,11 +622,8 @@ struct DeferredPluginView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: Load
-
     private func loadRunnerAndItem() async {
         do {
-            // Decode payload first — cheap, synchronous-ish
             switch item.effectiveType {
             case .anime:
                 let val = try JSONDecoder().decode(Anime.self, from: item.rawPayload)
@@ -496,17 +636,12 @@ struct DeferredPluginView: View {
                 await MainActor.run { decodedNovel = val }
             }
 
-            // Bail early if user navigated away
             try Task.checkCancellation()
-
             let pluginRunner = try await PluginManager.shared.getRunner(for: item.pluginId)
-
             try Task.checkCancellation()
-
             await MainActor.run { runner = pluginRunner }
 
         } catch is CancellationError {
-            // User navigated away — discard silently, don't update state
         } catch {
             await MainActor.run { errorMessage = error.localizedDescription }
         }
@@ -540,10 +675,6 @@ struct UpdateProgressBanner: View {
     }
 }
 
-// MARK: - Preview
-
-struct LibraryView_Previews: PreviewProvider {
-    static var previews: some View {
-        LibraryView()
-    }
+private struct SheetIdentifiable: Identifiable {
+    let id: String
 }

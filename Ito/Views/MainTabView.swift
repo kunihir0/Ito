@@ -2,31 +2,39 @@ import SwiftUI
 
 struct MainTabView: View {
     var body: some View {
-        TabView {
-            LibraryView()
-                .tabItem {
-                    Label("Library", systemImage: "books.vertical")
-                }
+        ZStack {
+            TabView {
+                LibraryView()
+                    .tabItem {
+                        Label("Library", systemImage: "books.vertical")
+                    }
 
-            BrowseView()
-                .tabItem {
-                    Label("Browse", systemImage: "globe")
-                }
+                BrowseView()
+                    .tabItem {
+                        Label("Browse", systemImage: "globe")
+                    }
 
-            DiscoverView()
-                .tabItem {
-                    Label("Discover", systemImage: "sparkles")
-                }
+                DiscoverView()
+                    .tabItem {
+                        Label("Discover", systemImage: "sparkles")
+                    }
 
-            SearchView()
-                .tabItem {
-                    Label("Search", systemImage: "magnifyingglass")
-                }
+                SearchView()
+                    .tabItem {
+                        Label("Search", systemImage: "magnifyingglass")
+                    }
 
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape")
-                }
+                SettingsView()
+                    .tabItem {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+            }
+
+            // Present frictionless save snipes globally
+            VStack {
+                Spacer()
+                SnackBarOverlay()
+            }
         }
     }
 }

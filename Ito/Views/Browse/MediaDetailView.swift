@@ -130,7 +130,11 @@ public class MediaDetailViewModel<M: MediaDisplayable>: ObservableObject {
         return ascending.last
     }
 
-    public func toggleSave() {
+    /// Returns `true` if a new item was saved (used by the view to decide sheet vs snackbar).
+    @discardableResult
+    public func toggleSave() -> Bool {
+        let currentlySaved = LibraryManager.shared.isSaved(id: media.key)
+
         if let manga = media as? Manga {
             LibraryManager.shared.toggleSaveManga(manga: manga, pluginId: pluginId)
         } else if let anime = media as? Anime {
@@ -138,6 +142,8 @@ public class MediaDetailViewModel<M: MediaDisplayable>: ObservableObject {
         } else if let novel = media as? Novel {
             LibraryManager.shared.toggleSaveNovel(novel: novel, pluginId: pluginId)
         }
+
+        return !currentlySaved
     }
 }
 
@@ -148,9 +154,12 @@ public struct MediaDetailView<M: MediaDisplayable>: View {
     @EnvironmentObject var progressManager: ReadProgressManager
     @ObservedObject var libraryManager = LibraryManager.shared
 
+    @AppStorage(UserDefaultsKeys.alwaysShowCategoryPicker) private var alwaysShowCategoryPicker: Bool = false
+
     @State private var showTrackerSearch = false
     @State private var showNavTitle = false
     @State private var readingChapter: IdentifiableChapter<M.Chapter>?
+    @State private var showCategoryAssignment = false
 
     public init(runner: ItoRunner, media: M, pluginId: String, loader: @escaping (M) async throws -> M) {
         self.runner = runner
@@ -184,7 +193,17 @@ public struct MediaDetailView<M: MediaDisplayable>: View {
                     isTracked: isTracked,
                     tags: viewModel.media.tags,
                     cleanDescription: viewModel.media.description?.strippingHTML(),
-                    onSaveToggle: { viewModel.toggleSave() },
+                    onSaveToggle: {
+                        let didSaveNew = viewModel.toggleSave()
+                        if didSaveNew {
+                            let hasCustomCategories = libraryManager.categories.filter({ !$0.isSystemCategory }).count > 0
+                            if alwaysShowCategoryPicker && hasCustomCategories {
+                                showCategoryAssignment = true
+                            } else {
+                                SnackBarManager.shared.showSaved(itemId: viewModel.media.key)
+                            }
+                        }
+                    },
                     onTrackToggle: TrackerManager.shared.authenticatedProviders.isEmpty ? nil : { showTrackerSearch = true }
                 )
 
@@ -218,6 +237,11 @@ public struct MediaDetailView<M: MediaDisplayable>: View {
                 NovelReaderView(runner: runner, pluginId: viewModel.pluginId, novel: novel, currentChapter: ch)
             } else {
                 Text("Unsupported media type")
+            }
+        }
+        .sheet(isPresented: $showCategoryAssignment) {
+            NavigationView {
+                CategoryAssignmentSheet(itemId: viewModel.media.key)
             }
         }
         .task { await viewModel.loadDetails() }
