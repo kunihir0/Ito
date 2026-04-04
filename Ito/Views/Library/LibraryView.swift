@@ -93,6 +93,17 @@ struct LibraryView: View {
             )
         }
         .navigationViewStyle(.stack)
+        .onAppear {
+            updateDiscordStatus()
+        }
+        .onChange(of: selectedCategoryId) { _ in
+            updateDiscordStatus()
+        }
+    }
+
+    private func updateDiscordStatus() {
+        let categoryName = libraryManager.categories.first(where: { $0.id == selectedCategoryId })?.name
+        DiscordRPCManager.shared.updateLibraryStatus(categoryName: categoryName)
     }
 
     // MARK: Content

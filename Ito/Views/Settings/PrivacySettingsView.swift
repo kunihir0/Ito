@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PrivacySettingsView: View {
     @AppStorage("Ito.IncognitoMode") private var isIncognitoMode: Bool = false
+    @ObservedObject private var discordRPC = DiscordRPCManager.shared
 
     var body: some View {
         Form {
@@ -12,6 +13,45 @@ struct PrivacySettingsView: View {
                 Toggle(isOn: $isIncognitoMode) {
                     Label("Incognito Mode", systemImage: "eyes")
                 }
+        }
+
+            Section {
+                Toggle(isOn: Binding(
+                    get: { discordRPC.isEnabled },
+                    set: { discordRPC.setIsEnabled($0) }
+                )) {
+                    Label("Discord Rich Presence", systemImage: "gamecontroller")
+                }
+
+                if discordRPC.isEnabled {
+                    TextField("Server URL (e.g. ws://127.0.0.1:3000)", text: Binding(
+                        get: { discordRPC.wsUrl },
+                        set: { discordRPC.wsUrl = $0 }
+                    ))
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+
+                    HStack {
+                        Text("Status")
+                        Spacer()
+                        Group {
+                            switch discordRPC.state {
+                            case .connected:
+                                Text("Connected").foregroundColor(.green)
+                            case .connecting:
+                                Text("Connecting...").foregroundColor(.yellow)
+                            case .disconnected:
+                                Text("Disconnected").foregroundColor(.gray)
+                            case .error(let msg):
+                                Text("Error: \(msg)").foregroundColor(.red).lineLimit(1)
+                            }
+                        }
+                    }
+                }
+            } header: {
+                Text("Discord Integration")
+            } footer: {
+                Text("Broadcasts your reading and watching activity to Discord via a local Rust WebSocket server.")
             }
         }
         .navigationTitle("Privacy")

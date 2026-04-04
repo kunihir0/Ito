@@ -138,6 +138,41 @@ struct ReaderView: View {
             )
         }
         .task { await loadInitialChapter() }
+        .onAppear {
+            let anilistId = TrackerManager.shared.getMediaId(for: manga.key, providerId: "anilist")
+            let url = anilistId.flatMap { "https://anilist.co/manga/\($0)" }
+            let pluginName = PluginManager.shared.installedPlugins[pluginId]?.info.name ?? "Unknown Plugin"
+            let scanlator = currentChapter.scanlator ?? "Official"
+
+            DiscordRPCManager.shared.setActivity(
+                details: manga.title,
+                state: "Reading \(currentChapter.title ?? "Chapter \(currentChapter.chapterNumber ?? 0)")",
+                activityType: 3,
+                detailsUrl: url,
+                largeImageText: "Reading from \(scanlator) at \(pluginName)",
+                imageUrl: manga.cover,
+                resetTimer: true
+            )
+        }
+        .onChange(of: currentChapter.key) { _ in
+            let anilistId = TrackerManager.shared.getMediaId(for: manga.key, providerId: "anilist")
+            let url = anilistId.flatMap { "https://anilist.co/manga/\($0)" }
+            let pluginName = PluginManager.shared.installedPlugins[pluginId]?.info.name ?? "Unknown Plugin"
+            let scanlator = currentChapter.scanlator ?? "Official"
+
+            DiscordRPCManager.shared.setActivity(
+                details: manga.title,
+                state: "Reading \(currentChapter.title ?? "Chapter \(currentChapter.chapterNumber ?? 0)")",
+                activityType: 3,
+                detailsUrl: url,
+                largeImageText: "Reading from \(scanlator) at \(pluginName)",
+                imageUrl: manga.cover,
+                resetTimer: false
+            )
+        }
+        .onDisappear {
+            DiscordRPCManager.shared.clearActivity()
+        }
         .onDisappear { imagePrefetcher.stopPrefetching() }
     }
     // MARK: - Reader Components

@@ -268,6 +268,25 @@ public struct MediaDetailView<M: MediaDisplayable>: View {
             }
         }
         .task { await viewModel.loadDetails() }
+        .onAppear {
+            let anilistId = TrackerManager.shared.getMediaId(for: viewModel.media.key, providerId: "anilist")
+            let isAnime = viewModel.media is Anime
+            let url = anilistId.flatMap { "https://anilist.co/\(isAnime ? "anime" : "manga")/\($0)" }
+            let pluginName = PluginManager.shared.installedPlugins[viewModel.pluginId]?.info.name ?? "Unknown Plugin"
+
+            DiscordRPCManager.shared.setActivity(
+                details: viewModel.media.title,
+                state: "Viewing Details",
+                activityType: 3,
+                detailsUrl: url,
+                largeImageText: "Browsing at \(pluginName)",
+                imageUrl: viewModel.media.cover,
+                resetTimer: true
+            )
+        }
+        .onDisappear {
+            DiscordRPCManager.shared.clearActivity()
+        }
         .refreshable { await viewModel.loadDetails(force: true) }
         .onChange(of: viewModel.selectedGroup) { _ in
             // Filtering episodes by season is handled locally in the view model if needed.

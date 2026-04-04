@@ -198,7 +198,40 @@ struct VideoPlayerView: View {
         .task {
             await loadVideoStreams()
         }
+        .onAppear {
+            let anilistId = TrackerManager.shared.getMediaId(for: anime.key, providerId: "anilist")
+            let url = anilistId.flatMap { "https://anilist.co/anime/\($0)" }
+            let pluginName = PluginManager.shared.installedPlugins[pluginId]?.info.name ?? "Unknown Plugin"
+            let subGroup = episode.lang?.uppercased() ?? "Original"
+
+            DiscordRPCManager.shared.setActivity(
+                details: anime.title,
+                state: "Watching \(episode.title ?? "Episode \(episode.chapterNumber ?? 0)")",
+                activityType: 3,
+                detailsUrl: url,
+                largeImageText: "Watching from \(subGroup) at \(pluginName)",
+                imageUrl: anime.cover,
+                resetTimer: true
+            )
+        }
+        .onChange(of: episode.key) { _ in
+            let anilistId = TrackerManager.shared.getMediaId(for: anime.key, providerId: "anilist")
+            let url = anilistId.flatMap { "https://anilist.co/anime/\($0)" }
+            let pluginName = PluginManager.shared.installedPlugins[pluginId]?.info.name ?? "Unknown Plugin"
+            let subGroup = episode.lang?.uppercased() ?? "Original"
+
+            DiscordRPCManager.shared.setActivity(
+                details: anime.title,
+                state: "Watching \(episode.title ?? "Episode \(episode.chapterNumber ?? 0)")",
+                activityType: 3,
+                detailsUrl: url,
+                largeImageText: "Watching from \(subGroup) at \(pluginName)",
+                imageUrl: anime.cover,
+                resetTimer: false
+            )
+        }
         .onDisappear {
+            DiscordRPCManager.shared.clearActivity()
             player?.pause()
         }
     }

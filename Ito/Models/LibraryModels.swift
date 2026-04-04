@@ -23,6 +23,10 @@ public enum UserDefaultsKeys {
     public static let skipCompleted = "ito_skip_completed"
     public static let updateNotifications = "ito_update_notifications"
     public static let wifiOnlyUpdates = "ito_wifi_only_updates"
+
+    // Discord RPC Settings
+    public static let discordRpcEnabled = "ito_discord_rpc_enabled"
+    public static let discordRpcUrl = "ito_discord_rpc_url"
 }
 
 // MARK: - PHASE 1: Models
