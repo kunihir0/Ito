@@ -19,7 +19,7 @@ struct ItoApp: App {
         _ = StorageManager.shared
 
         // Register Background Task
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.kunihir0.ito.refresh", using: nil) { task in
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: "moe.itoapp.ito.refresh", using: nil) { task in
             if let refreshTask = task as? BGAppRefreshTask {
                 Self.handleAppRefresh(task: refreshTask)
             }
@@ -60,7 +60,7 @@ struct ItoApp: App {
         let isEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.bgUpdatesEnabled)
         guard isEnabled else { return }
 
-        let request = BGAppRefreshTaskRequest(identifier: "com.kunihir0.ito.refresh")
+        let request = BGAppRefreshTaskRequest(identifier: "moe.itoapp.ito.refresh")
 
         // Get update interval in hours from settings (default 4)
         let intervalHours = UserDefaults.standard.object(forKey: UserDefaultsKeys.updateInterval) as? Int ?? 4

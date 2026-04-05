@@ -322,7 +322,7 @@ public class DiscordRPCManager: NSObject, ObservableObject, URLSessionWebSocketD
         // Match user requested button layout
         buttons.append([
             "label": "View App On GitHub",
-            "url": "https://github.com/kunihir0/Ito"
+            "url": "https://github.com/itoapp/Ito"
         ])
 
         dataPayload["buttons"] = buttons

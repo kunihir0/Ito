@@ -14,7 +14,7 @@ public struct InstalledPlugin: Identifiable {
 public class PluginManager: ObservableObject {
     public static let shared = PluginManager()
 
-    // Key: Plugin ID (e.g., com.kunihir0.ito.hianime)
+    // Key: Plugin ID (e.g., moe.itoapp.ito.hianime)
     // Value: The parsed manifest info for that plugin
     @Published public private(set) var installedPlugins: [String: InstalledPlugin] = [:]
 

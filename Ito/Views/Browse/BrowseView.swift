@@ -5,7 +5,7 @@ import ito_runner
 
 extension UTType {
     static var ito: UTType {
-        UTType(exportedAs: "com.kunihir0.ito", conformingTo: .zip)
+        UTType(exportedAs: "moe.itoapp.ito", conformingTo: .zip)
     }
 }
 

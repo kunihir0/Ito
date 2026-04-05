@@ -11,7 +11,7 @@
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.kunihir0.ito</string>
+				<string>moe.itoapp.ito</string>
 			</array>
 		</dict>
 		<dict>
@@ -21,7 +21,7 @@
 			<string>Default</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.kunihir0.json</string>
+				<string>moe.itoapp.json</string>
 			</array>
 		</dict>
 	</array>
@@ -45,7 +45,7 @@
 			<key>UTTypeIconFiles</key>
 			<array/>
 			<key>UTTypeIdentifier</key>
-			<string>com.kunihir0.ito</string>
+			<string>moe.itoapp.ito</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -65,7 +65,7 @@
 			<key>UTTypeIconFiles</key>
 			<array/>
 			<key>UTTypeIdentifier</key>
-			<string>com.kunihir0.json</string>
+			<string>moe.itoapp.json</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -81,7 +81,7 @@
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>com.kunihir0.ito.refresh</string>
+		<string>moe.itoapp.ito.refresh</string>
 	</array>
 </dict>
 </plist>
