@@ -58,7 +58,8 @@ struct DiscoverDetailView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     SharedHeroHeader(
                     title: media.title,
-                    coverURL: media.bannerImage ?? media.coverImage,
+                    backdropURL: media.bannerImage,
+                    coverURL: media.coverImage,
                     authorOrStudio: media.titleRomaji != media.title ? media.titleRomaji : nil,
                     statusLabel: media.status?.replacingOccurrences(of: "_", with: " ").capitalized,
                     pluginId: media.averageScore != nil ? "★ \(media.averageScore!)%" : (media.format?.replacingOccurrences(of: "_", with: " ") ?? "Discover"),
@@ -396,6 +397,8 @@ private struct DiscoverRecommendationCard: View {
                 LazyImage(url: url) { state in
                     if let image = state.image {
                         image.resizable().aspectRatio(contentMode: .fill)
+                            .frame(width: 110, height: 160)
+                            .clipped()
                     } else if state.error != nil {
                         Color.itoCardBackground
                     } else {

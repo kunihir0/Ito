@@ -5,14 +5,16 @@ import Combine
 
 public struct SharedHeroHeader: View {
     public let title: String
+    public let backdropURL: String?
     public let coverURL: String?
     public let authorOrStudio: String?
     public let statusLabel: String?
     public let pluginId: String
     public var onImageLoaded: ((UIImage) -> Void)?
 
-    public init(title: String, coverURL: String?, authorOrStudio: String?, statusLabel: String?, pluginId: String, onImageLoaded: ((UIImage) -> Void)? = nil) {
+    public init(title: String, backdropURL: String? = nil, coverURL: String?, authorOrStudio: String?, statusLabel: String?, pluginId: String, onImageLoaded: ((UIImage) -> Void)? = nil) {
         self.title = title
+        self.backdropURL = backdropURL
         self.coverURL = coverURL
         self.authorOrStudio = authorOrStudio
         self.statusLabel = statusLabel
@@ -52,10 +54,13 @@ public struct SharedHeroHeader: View {
 
     @ViewBuilder
     private var coverBackground: some View {
-        if let coverURL = coverURL, let url = URL(string: coverURL) {
+        let backgroundURL = backdropURL ?? coverURL
+        if let bgURL = backgroundURL, let url = URL(string: bgURL) {
             LazyImage(url: url) { state in
                 if let image = state.image {
-                    image.resizable().aspectRatio(contentMode: .fill)
+                    Color.clear
+                        .overlay(image.resizable().aspectRatio(contentMode: .fill))
+                        .clipped()
                 } else {
                     Color(.secondarySystemBackground)
                 }
@@ -80,7 +85,9 @@ public struct SharedHeroHeader: View {
             if let coverURL = coverURL, let url = URL(string: coverURL) {
                 LazyImage(url: url) { state in
                     if let image = state.image {
-                        image.resizable().aspectRatio(contentMode: .fill)
+                        Color.clear
+                            .overlay(image.resizable().aspectRatio(contentMode: .fill))
+                            .clipped()
                             .onAppear {
                                 if let uiImage = state.imageContainer?.image {
                                     onImageLoaded?(uiImage)

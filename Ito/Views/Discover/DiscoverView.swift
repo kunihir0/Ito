@@ -381,6 +381,8 @@ struct DiscoverCardView: View {
                     LazyImage(url: url) { state in
                         if let image = state.image {
                             image.resizable().aspectRatio(contentMode: .fill)
+                                .frame(width: 120, height: 170)
+                                .clipped()
                         } else {
                             // Skeleton loading state instead of spinner
                             Color.itoCardBackground
@@ -439,6 +441,8 @@ struct DiscoverSearchRow: View {
                 LazyImage(url: url) { state in
                     if let image = state.image {
                         image.resizable().aspectRatio(contentMode: .fill)
+                            .frame(width: 60, height: 85)
+                            .clipped()
                     } else {
                         Color.itoCardBackground
                             .opacity(state.isLoading ? 0.5 : 1.0)
