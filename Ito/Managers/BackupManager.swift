@@ -15,7 +15,24 @@ public class BackupManager: ObservableObject {
     @Published public private(set) var isExporting: Bool = false
     @Published public private(set) var isRestoring: Bool = false
 
+    private let registeredImporters: [BackupImporter] = [
+        AidokuImporter(),
+        ItoNativeImporter()
+    ]
+
     private init() {}
+
+    private func parseBackup(url: URL) async throws -> ImportedBackup {
+        let isAccessing = url.startAccessingSecurityScopedResource()
+        defer { if isAccessing { url.stopAccessingSecurityScopedResource() } }
+
+        for importer in registeredImporters {
+            if importer.canHandle(url: url) {
+                return try await importer.parse(url: url)
+            }
+        }
+        throw URLError(.cannotDecodeRawData)
+    }
 
     /// Exports the current AppDatabase to a temporary .itobackup file and returns its URL.
     public func createBackupFile() async throws -> URL {
@@ -41,189 +58,146 @@ public class BackupManager: ObservableObject {
         return backupFileURL
     }
 
-    /// Analyzes the differences between the current database and a backup to find merge conflicts.
     public func analyzeMerge(from url: URL) async throws -> [MergeConflict] {
-        let isAccessing = url.startAccessingSecurityScopedResource()
-        defer { if isAccessing { url.stopAccessingSecurityScopedResource() } }
-
+        let importedBackup = try await parseBackup(url: url)
         let currentPool = AppDatabase.shared.dbPool
-        let backupPool = try DatabasePool(path: url.path)
 
         return try await currentPool.read { currentDb in
-            try backupPool.read { backupDb in
-                var conflicts: [MergeConflict] = []
+            var conflicts: [MergeConflict] = []
 
-                let localCategories = try LibraryCategory.fetchAll(currentDb)
-                let localLinks = try ItemCategoryLink.fetchAll(currentDb)
-                let localItems = try LibraryItem.fetchAll(currentDb)
+            let localCategories = try LibraryCategory.fetchAll(currentDb)
+            let localLinks = try ItemCategoryLink.fetchAll(currentDb)
+            let localItems = try LibraryItem.fetchAll(currentDb)
 
-                let backupCategories = try LibraryCategory.fetchAll(backupDb)
-                let backupLinks = try ItemCategoryLink.fetchAll(backupDb)
-                let backupItems = try LibraryItem.fetchAll(backupDb)
+            let localHistory = try ReadingHistoryRecord.fetchAll(currentDb)
 
-                let localHistory = try ReadingHistoryRecord.fetchAll(currentDb)
-                let backupHistory = (try? backupDb.tableExists("readingHistory")) == true ? try ReadingHistoryRecord.fetchAll(backupDb) : []
+            for backupItem in importedBackup.items {
+                guard let localItem = localItems.first(where: { $0.id == backupItem.id }) else { continue }
 
-                for backupItem in backupItems {
-                    guard let localItem = localItems.first(where: { $0.id == backupItem.id }) else { continue }
+                let localLink = localLinks.first(where: { $0.itemId == localItem.id })
+                let backupLink = importedBackup.links.first(where: { $0.itemId == backupItem.id })
 
-                    let localLink = localLinks.first(where: { $0.itemId == localItem.id })
-                    let backupLink = backupLinks.first(where: { $0.itemId == backupItem.id })
+                let localCategory = localCategories.first(where: { $0.id == localLink?.categoryId })?.name
+                let backupCategory = importedBackup.categories.first(where: { $0.id == backupLink?.categoryId })?.name
 
-                    let localCategory = localCategories.first(where: { $0.id == localLink?.categoryId })?.name
-                    let backupCategory = backupCategories.first(where: { $0.id == backupLink?.categoryId })?.name
+                let localHistCount = localHistory.filter({ $0.mediaKey == localItem.id }).count
+                let backupHistCount = importedBackup.history.filter({ $0.mediaKey == backupItem.id }).count
 
-                    let localHistCount = localHistory.filter({ $0.mediaKey == localItem.id }).count
-                    let backupHistCount = backupHistory.filter({ $0.mediaKey == backupItem.id }).count
-
-                    // We only consider it a conflict if the user-facing states differ. (e.g. Category or Chapters read differ).
-                    if localCategory != backupCategory || localHistCount != backupHistCount {
-                        conflicts.append(MergeConflict(
-                            item: localItem,
-                            localCategoryName: localCategory,
-                            backupCategoryName: backupCategory,
-                            localHistoryCount: localHistCount,
-                            backupHistoryCount: backupHistCount
-                        ))
-                    }
+                if localCategory != backupCategory || localHistCount != backupHistCount {
+                    conflicts.append(MergeConflict(
+                        item: localItem,
+                        localCategoryName: localCategory,
+                        backupCategoryName: backupCategory,
+                        localHistoryCount: localHistCount,
+                        backupHistoryCount: backupHistCount
+                    ))
                 }
-
-                return conflicts
             }
+
+            return conflicts
         }
     }
 
-    /// Restores a backup from the given URL. 
     public func restoreBackup(from url: URL, mode: BackupRestoreMode, resolvedConflicts: [String: ConflictResolution] = [:]) async throws {
         isRestoring = true
         defer { isRestoring = false }
 
-        // Start accessing the security-scoped resource if it's from a file importer
-        let isAccessing = url.startAccessingSecurityScopedResource()
-        defer {
-            if isAccessing {
-                url.stopAccessingSecurityScopedResource()
-            }
-        }
-
+        let importedBackup = try await parseBackup(url: url)
         let currentPool = AppDatabase.shared.dbPool
-        let backupPool = try DatabasePool(path: url.path)
 
         try await currentPool.write { currentDb in
-            try backupPool.read { backupDb in
+            // Discover our system category identity mapping
+            let currentSystemCat = try LibraryCategory.filter(Column("isSystemCategory") == true).fetchOne(currentDb)
+            let currentSystemId = currentSystemCat?.id
 
-                // Discover our system category identity mapping
-                let currentSystemCat = try LibraryCategory.filter(Column("isSystemCategory") == true).fetchOne(currentDb)
-                let currentSystemId = currentSystemCat?.id
+            // 1. If mode is WIPE, clear existing tables
+            if case .wipe = mode {
+                try ReadingHistoryRecord.deleteAll(currentDb)
+                try ItemCategoryLink.deleteAll(currentDb)
+                try LibraryItem.deleteAll(currentDb)
+                try LibraryCategory.filter(Column("isSystemCategory") == false).deleteAll(currentDb)
+            }
 
-                // 1. If mode is WIPE, clear existing tables (safely without breaking schema)
-                if case .wipe = mode {
-                    // This creates a rigid transaction that rolls back if anything fails
-                    try ReadingHistoryRecord.deleteAll(currentDb)
-                    try ItemCategoryLink.deleteAll(currentDb)
-                    try LibraryItem.deleteAll(currentDb)
-                    try LibraryCategory.filter(Column("isSystemCategory") == false).deleteAll(currentDb)
-                }
+            // Identify the backup's system category ID for mapping later
+            let backupSystemCatId = importedBackup.categories.first(where: { $0.isSystemCategory })?.id
 
-                // 2. Fetch all backup data safely (checking schema for backwards compatibility)
-                let backupCategories = try LibraryCategory.fetchAll(backupDb)
-                let backupItems = try LibraryItem.fetchAll(backupDb)
-                let backupLinks = try ItemCategoryLink.fetchAll(backupDb)
+            // 3. Insert or Update Categories
+            for category in importedBackup.categories {
+                // Prevent inserting duplicate system categories
+                if category.isSystemCategory { continue }
 
-                let backupHistory: [ReadingHistoryRecord]
-                if try backupDb.tableExists("readingHistory") {
-                    backupHistory = try ReadingHistoryRecord.fetchAll(backupDb)
+                if case .merge = mode {
+                    if try LibraryCategory.fetchOne(currentDb, key: category.id) == nil {
+                        try category.insert(currentDb)
+                    }
                 } else {
-                    backupHistory = []
+                    try category.save(currentDb)
                 }
+            }
 
-                let backupPreferences: [AppPreference]
-                if try backupDb.tableExists("appPreference") {
-                    backupPreferences = try AppPreference.fetchAll(backupDb)
+            // 4. Insert or Update Library Items
+            for item in importedBackup.items {
+                if case .merge = mode {
+                    let resolution = resolvedConflicts[item.id] ?? .keepLocal
+                    if try LibraryItem.fetchOne(currentDb, key: item.id) == nil {
+                        try item.insert(currentDb)
+                    } else if case .keepBackup = resolution {
+                        try item.update(currentDb)
+                    }
                 } else {
-                    backupPreferences = []
+                    try item.save(currentDb)
+                }
+            }
+
+            // 5. Insert Links (With strict consistency checks)
+            for var link in importedBackup.links {
+                // Automatically remap the system category if it points to the old UUID!
+                if link.categoryId == backupSystemCatId, let activeSystemId = currentSystemId {
+                    link = ItemCategoryLink(itemId: link.itemId, categoryId: activeSystemId, addedAt: link.addedAt)
                 }
 
-                // Identify the backup's system category ID for mapping later
-                let backupSystemCatId = backupCategories.first(where: { $0.isSystemCategory })?.id
-
-                // 3. Insert or Update Categories
-                for category in backupCategories {
-                    // Prevent inserting duplicate system categories
-                    if category.isSystemCategory { continue }
+                // Make sure both sides exist before inserting the strict FK
+                if try LibraryItem.fetchOne(currentDb, key: link.itemId) != nil,
+                   try LibraryCategory.fetchOne(currentDb, key: link.categoryId) != nil {
 
                     if case .merge = mode {
-                        if try LibraryCategory.fetchOne(currentDb, key: category.id) == nil {
-                            try category.insert(currentDb)
-                        }
-                    } else {
-                        try category.save(currentDb)
-                    }
-                }
+                        let resolution = resolvedConflicts[link.itemId] ?? .keepLocal
+                        let linkExists = try ItemCategoryLink.fetchOne(currentDb, key: ["itemId": link.itemId, "categoryId": link.categoryId]) != nil
 
-                // 4. Insert or Update Library Items
-                for item in backupItems {
-                    if case .merge = mode {
-                        let resolution = resolvedConflicts[item.id] ?? .keepLocal
-                        if try LibraryItem.fetchOne(currentDb, key: item.id) == nil {
-                            try item.insert(currentDb)
-                        } else if case .keepBackup = resolution {
-                            try item.update(currentDb)
-                        }
-                    } else {
-                        try item.save(currentDb)
-                    }
-                }
-
-                // 5. Insert Links (With strict consistency checks)
-                for var link in backupLinks {
-                    // Automatically remap the system category if it points to the old UUID!
-                    if link.categoryId == backupSystemCatId, let activeSystemId = currentSystemId {
-                        link = ItemCategoryLink(itemId: link.itemId, categoryId: activeSystemId, addedAt: link.addedAt)
-                    }
-
-                    if try LibraryItem.fetchOne(currentDb, key: link.itemId) != nil,
-                       try LibraryCategory.fetchOne(currentDb, key: link.categoryId) != nil {
-
-                        if case .merge = mode {
-                            let resolution = resolvedConflicts[link.itemId] ?? .keepLocal
-                            let linkExists = try ItemCategoryLink.fetchOne(currentDb, key: ["itemId": link.itemId, "categoryId": link.categoryId]) != nil
-
-                            if !linkExists {
-                                if try ItemCategoryLink.filter(Column("itemId") == link.itemId).fetchCount(currentDb) == 0 {
-                                    try link.insert(currentDb)
-                                } else if case .keepBackup = resolution {
-                                    try ItemCategoryLink.filter(Column("itemId") == link.itemId).deleteAll(currentDb)
-                                    try link.insert(currentDb)
-                                }
-                            }
-                        } else {
-                            try link.save(currentDb)
-                        }
-                    }
-                }
-
-                // 6. Insert History
-                for entry in backupHistory {
-                    if case .merge = mode {
-                        let resolution = resolvedConflicts[entry.mediaKey] ?? .keepLocal
-                        if try ReadingHistoryRecord.fetchOne(currentDb, key: entry.id) == nil {
-                            if case .keepBackup = resolution {
-                                try entry.insert(currentDb)
+                        if !linkExists {
+                            if try ItemCategoryLink.filter(Column("itemId") == link.itemId).fetchCount(currentDb) == 0 {
+                                try link.insert(currentDb)
+                            } else if case .keepBackup = resolution {
+                                try ItemCategoryLink.filter(Column("itemId") == link.itemId).deleteAll(currentDb)
+                                try link.insert(currentDb)
                             }
                         }
                     } else {
-                        try entry.save(currentDb)
+                        try link.save(currentDb)
                     }
                 }
+            }
 
-                // 7. Insert AppPreferences
-                if case .wipe = mode {
-                    try AppPreference.deleteAll(currentDb)
+            // 6. Insert History
+            for entry in importedBackup.history {
+                if case .merge = mode {
+                    let resolution = resolvedConflicts[entry.mediaKey] ?? .keepLocal
+                    if try ReadingHistoryRecord.fetchOne(currentDb, key: entry.id) == nil {
+                        if case .keepBackup = resolution {
+                            try entry.insert(currentDb)
+                        }
+                    }
+                } else {
+                    try entry.save(currentDb)
                 }
-                for pref in backupPreferences {
-                    try pref.save(currentDb)
-                }
+            }
+
+            // 7. Insert AppPreferences
+            if case .wipe = mode {
+                try AppPreference.deleteAll(currentDb)
+            }
+            for pref in importedBackup.preferences {
+                try pref.save(currentDb)
             }
         }
     }

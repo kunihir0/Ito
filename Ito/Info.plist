@@ -16,6 +16,16 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
+			<string>Aidoku Backup</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>moe.itoapp.aidoku.backup</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
 			<string>Plugin archive</string>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
@@ -42,6 +52,26 @@
 	    <key>NSAllowsArbitraryLoads</key>
 	    <true/>
 	</dict>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Aidoku Backup</string>
+			<key>UTTypeIdentifier</key>
+			<string>moe.itoapp.aidoku.backup</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>aib</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 	<key>UTExportedTypeDeclarations</key>	<array>
 		<dict>
 			<key>UTTypeConformsTo</key>

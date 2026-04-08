@@ -4,10 +4,11 @@ import UniformTypeIdentifiers
 extension UTType {
     /// Custom UTType for Ito Backup Files natively configured.
     nonisolated static let itoBackup = UTType(exportedAs: "moe.itoapp.backup", conformingTo: .data)
+    nonisolated static let aidokuBackup = UTType(importedAs: "moe.itoapp.aidoku.backup", conformingTo: .data)
 }
 
 struct BackupDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.itoBackup] }
+    static var readableContentTypes: [UTType] { [.itoBackup, .aidokuBackup] }
 
     var fileURL: URL?
 
