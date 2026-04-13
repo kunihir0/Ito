@@ -63,6 +63,12 @@ public class MediaDetailViewModel<M: MediaDisplayable>: ObservableObject {
     public let pluginId: String
     private let loader: (M) async throws -> M
 
+    // Re-link state for imported items with mismatched content keys
+    public var relinkSearchResults: [M] = [] { willSet { objectWillChange.send() } }
+    public var isRelinkSearching = false { willSet { objectWillChange.send() } }
+    public var relinkError: String? { willSet { objectWillChange.send() } }
+    public var didRelink = false { willSet { objectWillChange.send() } }
+
     public init(media: M, pluginId: String, loader: @escaping (M) async throws -> M) {
         self.media = media
         self.pluginId = pluginId
@@ -112,6 +118,98 @@ public class MediaDetailViewModel<M: MediaDisplayable>: ObservableObject {
         } catch {
             self.errorMessage = error.localizedDescription
             self.isLoaded = true
+        }
+    }
+
+    // MARK: - Re-link
+
+    public func searchForRelink(runner: ItoRunner) async {
+        isRelinkSearching = true
+        relinkError = nil
+        relinkSearchResults = []
+
+        do {
+            if let manga = media as? Manga {
+                let result = try await runner.getSearchMangaList(query: manga.title, page: 1, filters: nil)
+                relinkSearchResults = result.entries as? [M] ?? []
+            } else if let anime = media as? Anime {
+                let result = try await runner.getSearchAnimeList(query: anime.title, page: 1, filters: nil)
+                relinkSearchResults = result.entries as? [M] ?? []
+            } else if let novel = media as? Novel {
+                let result = try await runner.getSearchNovelList(query: novel.title, page: 1, filters: nil)
+                relinkSearchResults = result.entries as? [M] ?? []
+            }
+        } catch {
+            relinkError = "Search failed: \(error.localizedDescription)"
+        }
+
+        isRelinkSearching = false
+    }
+
+    public func performRelink(with selectedMedia: M) async {
+        let oldKey = media.key
+        let newKey = selectedMedia.key
+
+        let possibleOldIds = [oldKey, "\(pluginId)_\(oldKey)"]
+        let newItemId = newKey
+
+        do {
+            // 1. Hydrate the selected media to get full details + chapters
+            let hydrated = try await loader(selectedMedia)
+
+            // 2. Encode the hydrated media as the new rawPayload
+            let newPayload = try JSONEncoder().encode(hydrated)
+            let hydratedTitle = hydrated.title
+            let hydratedCover = hydrated.cover
+
+            // 3. Update the database
+            try await AppDatabase.shared.dbPool.write { db in
+                // Find the existing item under either ID format
+                var existingItemId: String?
+                var existingItem: LibraryItem?
+
+                for id in possibleOldIds {
+                    if let item = try LibraryItem.fetchOne(db, key: id) {
+                        existingItemId = id
+                        existingItem = item
+                        break
+                    }
+                }
+
+                guard let oldItemId = existingItemId, let item = existingItem else { return }
+
+                try LibraryItem.deleteOne(db, key: oldItemId)
+
+                try db.execute(
+                    sql: "UPDATE itemCategoryLink SET itemId = ? WHERE itemId = ?",
+                    arguments: [newItemId, oldItemId]
+                )
+
+                try db.execute(
+                    sql: "UPDATE readingHistory SET libraryItemId = ?, mediaKey = ? WHERE libraryItemId = ?",
+                    arguments: [newItemId, newItemId, oldItemId]
+                )
+
+                let newItem = LibraryItem(
+                    id: newItemId,
+                    title: hydratedTitle,
+                    coverUrl: hydratedCover,
+                    pluginId: pluginId,
+                    isAnime: item.isAnime,
+                    pluginType: item.pluginType,
+                    rawPayload: newPayload,
+                    anilistId: item.anilistId
+                )
+                try newItem.insert(db)
+            }
+
+            // 4. Update the view model
+            self.media = hydrated
+            self.isLoaded = true
+            self.errorMessage = nil
+            self.didRelink = true
+        } catch {
+            relinkError = "Re-link failed: \(error.localizedDescription)"
         }
     }
 
@@ -185,6 +283,9 @@ public struct MediaDetailView<M: MediaDisplayable>: View {
     @State private var showCategoryAssignment = false
     @State private var themeDominant: Color?
     @State private var themeSecondary: Color?
+
+    // Re-link presentation (view-layer concern)
+    @State private var showRelinkSearch = false
 
     public init(runner: ItoRunner, media: M, pluginId: String, loader: @escaping (M) async throws -> M) {
         self.runner = runner
@@ -291,6 +392,9 @@ public struct MediaDetailView<M: MediaDisplayable>: View {
                 CategoryAssignmentSheet(itemId: viewModel.media.key)
             }
         }
+        .sheet(isPresented: $showRelinkSearch) {
+            relinkSearchSheet
+        }
         .task {
             if let theme = await ThemeManager.shared.getTheme(for: viewModel.media.key) {
                 self.themeDominant = Color(hex: theme.dominantHex)
@@ -327,6 +431,13 @@ public struct MediaDetailView<M: MediaDisplayable>: View {
     private var chapterSection: some View {
         if !viewModel.isLoaded && viewModel.errorMessage == nil {
             ProgressView("Loading...").frame(maxWidth: .infinity).padding(.vertical, 32)
+        } else if let chapters = viewModel.media.chapterList, !chapters.isEmpty {
+            let displayed = viewModel.displayedChapters(progressManager: progressManager)
+            chapterListHeader(allChapters: chapters, displayedChapters: displayed)
+            chapterList(chapters: displayed)
+        } else if isSaved {
+            // Library item with no chapters (key mismatch or error) — offer re-link
+            relinkBanner
         } else if let error = viewModel.errorMessage {
             VStack(spacing: 12) {
                 Image(systemName: "exclamationmark.triangle")
@@ -334,10 +445,6 @@ public struct MediaDetailView<M: MediaDisplayable>: View {
                 Text(error).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity).padding(.horizontal, 24).padding(.vertical, 32)
-        } else if let chapters = viewModel.media.chapterList, !chapters.isEmpty {
-            let displayed = viewModel.displayedChapters(progressManager: progressManager)
-            chapterListHeader(allChapters: chapters, displayedChapters: displayed)
-            chapterList(chapters: displayed)
         } else {
             Text("No content found.").font(.subheadline).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity).padding(.vertical, 32)
@@ -463,6 +570,127 @@ public struct MediaDetailView<M: MediaDisplayable>: View {
             }
         }
     }
+
+    // MARK: - Re-link UI
+
+    @ViewBuilder
+    private var relinkBanner: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "link.badge.plus")
+                .font(.system(size: 36, weight: .thin))
+                .foregroundStyle(.orange)
+
+            VStack(spacing: 4) {
+                Text("Content Not Found")
+                    .font(.headline)
+                Text("This item may have been imported with an incompatible content key. Search this source to link it to the correct entry.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button {
+                showRelinkSearch = true
+                Task { await viewModel.searchForRelink(runner: runner) }
+            } label: {
+                Label("Search & Link", systemImage: "magnifyingglass")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.orange)
+            .controlSize(.large)
+            .padding(.horizontal, 32)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 32)
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private var relinkSearchSheet: some View {
+        NavigationView {
+            Group {
+                if viewModel.isRelinkSearching && viewModel.relinkSearchResults.isEmpty {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text("Searching for \"\(viewModel.media.title)\"…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if viewModel.relinkSearchResults.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 36, weight: .thin))
+                            .foregroundStyle(.secondary)
+                        Text(viewModel.relinkError ?? "No results found. Try a different search.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(32)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List(viewModel.relinkSearchResults, id: \.key) { result in
+                        Button {
+                            Task {
+                                await viewModel.performRelink(with: result)
+                                if viewModel.didRelink {
+                                    showRelinkSearch = false
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                AsyncImage(url: URL(string: result.cover ?? "")) { image in
+                                    image.resizable().aspectRatio(contentMode: .fill)
+                                } placeholder: {
+                                    Rectangle().fill(.quaternary)
+                                }
+                                .frame(width: 48, height: 68)
+                                .cornerRadius(6)
+                                .clipped()
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(result.title)
+                                        .font(.body)
+                                        .foregroundColor(.primary)
+                                        .lineLimit(2)
+                                    if let authors = result.authors, !authors.isEmpty {
+                                        Text(authors.joined(separator: ", "))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                    Text("Key: \(result.key)")
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                        .lineLimit(1)
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "arrow.right.circle")
+                                    .foregroundStyle(.blue)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                }
+            }
+            .navigationTitle("Link to Source")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        showRelinkSearch = false
+                    }
+                }
+            }
+        }
+    }
+
 }
 
 private struct ActiveFilterPill: View {

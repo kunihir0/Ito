@@ -119,7 +119,7 @@ public class LibraryManager: ObservableObject, LibraryManaging {
     // MARK: - Legacy Plugin Toggles Compatibility
 
     public func isSaved(id: String) -> Bool {
-        return items.contains(where: { $0.id == id })
+        return items.contains(where: { $0.id == id || $0.id == "\($0.pluginId)_\(id)" })
     }
 
     public func removeItem(withId id: String) {
@@ -138,10 +138,15 @@ public class LibraryManager: ObservableObject, LibraryManaging {
 
     private func saveOrRemoveItem(id: String, itemProvider: () -> LibraryItem) {
         let generatedItem = itemProvider()
+        let legacyId = "\(generatedItem.pluginId)_\(id)"
+
         Task {
             do {
                 try await dbPool.write { db in
-                    if let existing = try LibraryItem.fetchOne(db, key: id) {
+                    // Check for either the standard ID or the legacy plugin-prefixed ID
+                    let existingItem = try LibraryItem.fetchOne(db, sql: "SELECT * FROM libraryItem WHERE id = ? OR id = ?", arguments: [id, legacyId])
+
+                    if let existing = existingItem {
                         try existing.delete(db) // CASCADE will delete links
                     } else {
                         let newItem = generatedItem

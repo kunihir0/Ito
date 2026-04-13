@@ -145,7 +145,7 @@ public struct PaperbackImporter: BackupImporter {
             sourceItemCounts[src.sourceId, default: 0] += 1
 
             let resolvedPluginId = resolution.resolvedId
-            let globallyUniqueId = "\(resolvedPluginId)_\(src.mangaId)"
+            let globallyUniqueId = src.mangaId
 
             // Map status
             var targetStatus: Manga.Status = .Unknown

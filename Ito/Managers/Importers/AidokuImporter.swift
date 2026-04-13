@@ -130,7 +130,7 @@ public struct AidokuImporter: BackupImporter {
                 sourceItemCounts[libItem.sourceId, default: 0] += 1
 
                 let resolvedPluginId = resolution.resolvedId
-                let globallyUniqueId = "\(resolvedPluginId)_\(libItem.mangaId)"
+                let globallyUniqueId = libItem.mangaId
 
                 // Synthesize Manga payload
                 let syntheticManga = Manga(

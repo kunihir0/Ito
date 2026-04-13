@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>moe.itoapp.ito.refresh</string>
+	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -45,51 +49,19 @@
 			</array>
 		</dict>
 	</array>
-	<key>UIFileSharingEnabled</key>
-	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-	    <key>NSAllowsArbitraryLoads</key>
-	    <true/>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
 	</dict>
-	<key>UTImportedTypeDeclarations</key>
+	<key>UIBackgroundModes</key>
 	<array>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.data</string>
-			</array>
-			<key>UTTypeDescription</key>
-			<string>Aidoku Backup</string>
-			<key>UTTypeIdentifier</key>
-			<string>moe.itoapp.aidoku.backup</string>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>aib</string>
-				</array>
-			</dict>
-		</dict>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.zip</string>
-			</array>
-			<key>UTTypeDescription</key>
-			<string>Paperback Backup</string>
-			<key>UTTypeIdentifier</key>
-			<string>moe.itoapp.paperback.backup</string>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>pas4</string>
-				</array>
-			</dict>
-		</dict>
+		<string>fetch</string>
 	</array>
-	<key>UTExportedTypeDeclarations</key>	<array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
 		<dict>
 			<key>UTTypeConformsTo</key>
 			<array>
@@ -152,13 +124,42 @@
 			</dict>
 		</dict>
 	</array>
-	<key>UIBackgroundModes</key>
+	<key>UTImportedTypeDeclarations</key>
 	<array>
-		<string>fetch</string>
-	</array>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>moe.itoapp.ito.refresh</string>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Aidoku Backup</string>
+			<key>UTTypeIdentifier</key>
+			<string>moe.itoapp.aidoku.backup</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>aib</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.zip</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Paperback Backup</string>
+			<key>UTTypeIdentifier</key>
+			<string>moe.itoapp.paperback.backup</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>pas4</string>
+				</array>
+			</dict>
+		</dict>
 	</array>
 </dict>
 </plist>
