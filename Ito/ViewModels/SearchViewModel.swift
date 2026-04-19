@@ -85,26 +85,34 @@ public class SearchViewModel: ObservableObject {
             activeTasks.insert(plugin.id)
         }
 
-        for plugin in validPlugins {
-            let task = Task { @MainActor in
-                defer {
-                    if self.searchSessionID == sessionID {
-                        self.activeTasks.remove(plugin.id)
-                        if self.activeTasks.isEmpty {
-                            self.isSearching = false
-                        }
-                    }
+        // IMPORTANT: ItoRunner WASM host functions use DispatchSemaphore to bridge
+        // sync WASM ↔ async Swift. Each in-flight call blocks one thread from the
+        // cooperative thread pool. Running too many searches concurrently exhausts
+        // the pool and deadlocks. We run searches SERIALLY to avoid this.
+        let searchPlugins = validPlugins
+        let searchQuery = trimmed
+        let task = Task { @MainActor in
+            for plugin in searchPlugins {
+                // Bail out if a newer search has started
+                guard !Task.isCancelled, self.searchSessionID == sessionID else {
+                    print("🔍 [Search] Session invalidated, stopping")
+                    break
                 }
 
                 do {
+                    print("🔍 [Search] Getting runner for \(plugin.info.name)...")
                     let runner = try await PluginManager.shared.getRunner(for: plugin.id)
-                    var results: [PluginSearchResult] = []
 
-                    if self.searchSessionID != sessionID { return }
+                    guard !Task.isCancelled, self.searchSessionID == sessionID else { break }
+
+                    print("🔍 [Search] Searching \(plugin.info.name) for '\(searchQuery)'...")
+                    var results: [PluginSearchResult] = []
 
                     switch plugin.info.type {
                     case .manga:
-                        let res = try await runner.getSearchMangaList(query: trimmed, page: 1, filters: nil)
+                        let res = try await runner.getSearchMangaList(query: searchQuery, page: 1, filters: nil)
+                        print("🔍 [Search] \(plugin.info.name) WASM returned \(res.entries.count) raw manga entries (hasNextPage: \(res.hasNextPage))")
+                        guard !Task.isCancelled else { break }
                         results = res.entries.prefix(25).map { manga in
                             PluginSearchResult(
                                 id: manga.key,
@@ -116,7 +124,9 @@ public class SearchViewModel: ObservableObject {
                             )
                         }
                     case .anime:
-                        let res = try await runner.getSearchAnimeList(query: trimmed, page: 1, filters: nil)
+                        let res = try await runner.getSearchAnimeList(query: searchQuery, page: 1, filters: nil)
+                        print("🔍 [Search] \(plugin.info.name) WASM returned \(res.entries.count) raw anime entries (hasNextPage: \(res.hasNextPage))")
+                        guard !Task.isCancelled else { break }
                         results = res.entries.prefix(25).map { anime in
                             PluginSearchResult(
                                 id: anime.key,
@@ -128,7 +138,9 @@ public class SearchViewModel: ObservableObject {
                             )
                         }
                     case .novel:
-                        let res = try await runner.getSearchNovelList(query: trimmed, page: 1, filters: nil)
+                        let res = try await runner.getSearchNovelList(query: searchQuery, page: 1, filters: nil)
+                        print("🔍 [Search] \(plugin.info.name) WASM returned \(res.entries.count) raw novel entries (hasNextPage: \(res.hasNextPage))")
+                        guard !Task.isCancelled else { break }
                         results = res.entries.prefix(25).map { novel in
                             PluginSearchResult(
                                 id: novel.key,
@@ -143,15 +155,42 @@ public class SearchViewModel: ObservableObject {
                         break
                     }
 
-                    if self.searchSessionID == sessionID && !results.isEmpty {
+                    let sessionValid = self.searchSessionID == sessionID
+                    if sessionValid && !results.isEmpty {
+                        print("🔍 [Search] \(plugin.info.name) → \(results.count) results added to UI")
                         self.searchResults[plugin.info.name] = results
+                    } else if !sessionValid {
+                        print("🔍 [Search] \(plugin.info.name) → DROPPED (session expired)")
+                    } else {
+                        print("🔍 [Search] \(plugin.info.name) → 0 mapped results, skipping")
                     }
+                } catch is CancellationError {
+                    print("🔍 [Search] Cancelled for \(plugin.info.name)")
+                    break
                 } catch {
-                    print("Search failed for \(plugin.info.name): \(error)")
+                    print("🔍 [Search] Failed for \(plugin.info.name): \(error)")
+                    // If a WASM trap occurred, the runner state may be corrupted.
+                    // Evict it so the next use creates a fresh instance.
+                    if "\(error)".contains("wasmTrap") || "\(error)".contains("Trap") {
+                        print("🔍 [Search] Evicting corrupted runner for \(plugin.id)")
+                        PluginManager.shared.evictRunner(for: plugin.id)
+                    }
+                }
+
+                // Mark this plugin as done
+                if self.searchSessionID == sessionID {
+                    self.activeTasks.remove(plugin.id)
                 }
             }
-            currentTasks.append(task)
+
+            // All done (or cancelled)
+            if self.searchSessionID == sessionID {
+                self.activeTasks.removeAll()
+                self.isSearching = false
+                print("🔍 [Search] All search tasks complete")
+            }
         }
+        currentTasks = [task]
     }
 
     public func clearRecentSearches() {

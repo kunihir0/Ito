@@ -31,13 +31,16 @@ public class PluginManager: ObservableObject {
     @MainActor
     public func getRunner(for pluginId: String) async throws -> ItoRunner {
         if let cached = runnerCache[pluginId] {
+            print("🔌 [PluginManager] Returning cached runner for \(pluginId)")
             return cached
         }
 
         guard let plugin = installedPlugins[pluginId] else {
+            print("🔌 [PluginManager] Plugin not found: \(pluginId)")
             throw URLError(.fileDoesNotExist) // Plugin not installed
         }
 
+        print("🔌 [PluginManager] Creating new runner for \(pluginId)...")
         let runner = ItoRunner()
         await runner.setNetModule(AppNetModule())
         await runner.setStdModule(DefaultStdModule())
@@ -45,10 +48,21 @@ public class PluginManager: ObservableObject {
         await runner.setHtmlModule(DefaultHtmlModule())
         await runner.setJsModule(DefaultJsModule())
 
+        print("🔌 [PluginManager] Loading bundle for \(pluginId)...")
         _ = try await runner.loadBundle(from: plugin.url)
 
         runnerCache[pluginId] = runner
+        print("🔌 [PluginManager] Runner cached for \(pluginId)")
         return runner
+    }
+
+    /// Evicts a cached runner for a plugin so the next getRunner call creates a fresh one.
+    /// Use this after settings changes that require the WASM module to be reloaded.
+    @MainActor
+    public func evictRunner(for pluginId: String) {
+        if runnerCache.removeValue(forKey: pluginId) != nil {
+            print("🔌 [PluginManager] Evicted cached runner for \(pluginId)")
+        }
     }
 
     /// Scans the Application Support/Plugins directory and parses all manifests.
@@ -80,6 +94,19 @@ public class PluginManager: ObservableObject {
             }
 
             self.installedPlugins = newCache
+
+            // Evict any cached runners whose plugin was removed or updated,
+            // so the next getRunner call loads the fresh WASM binary.
+            let validIds = Set(newCache.keys)
+            for cachedId in runnerCache.keys {
+                if !validIds.contains(cachedId) {
+                    runnerCache.removeValue(forKey: cachedId)
+                    print("🔌 [PluginManager] Evicted removed plugin runner: \(cachedId)")
+                }
+            }
+            // Also evict ALL runners to pick up updated .ito files
+            runnerCache.removeAll()
+            print("🔌 [PluginManager] Cleared runner cache (\(newCache.count) plugins loaded)")
 
         } catch {
             print("Failed to load installed plugins: \(error)")

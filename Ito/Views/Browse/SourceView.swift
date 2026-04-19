@@ -81,8 +81,11 @@ struct SourceView: View {
         }
         .sheet(isPresented: $showSettings, onDismiss: {
             Task {
+                // Evict the cached runner so settings changes take effect on reload
+                PluginManager.shared.evictRunner(for: plugin.id)
                 isLoaded = false
                 homeLayout = nil
+                runner = nil
                 await loadPlugin()
             }
         }) {
@@ -298,30 +301,43 @@ struct SourceView: View {
         searchTask?.cancel()
 
         guard !query.isEmpty else {
-            // Re-load default popular listing if search is cleared
-            Task { await loadPlugin() }
+            // Clear stale search results; the home layout is already loaded
+            searchMangas = []
+            searchAnimes = []
+            searchNovels = []
             return
         }
 
         searchTask = Task {
             // Debounce
             try? await Task.sleep(nanoseconds: 500_000_000)
-            guard !Task.isCancelled, let pluginRunner = self.runner else { return }
+            guard !Task.isCancelled, let pluginRunner = self.runner else {
+                print("🔍 [SourceView] Search skipped — cancelled or runner nil")
+                return
+            }
 
             do {
+                print("🔍 [SourceView] Searching '\(query)' on \(plugin.info.name)")
                 switch plugin.info.type {
                 case .anime:
                     let result = try await pluginRunner.getSearchAnimeList(query: query, page: 1, filters: [])
+                    guard !Task.isCancelled else { return }
                     await MainActor.run { self.searchAnimes = result.entries }
                 case .manga:
                     let result = try await pluginRunner.getSearchMangaList(query: query, page: 1, filters: [])
+                    guard !Task.isCancelled else { return }
                     await MainActor.run { self.searchMangas = result.entries }
                 case .novel:
                     let result = try await pluginRunner.getSearchNovelList(query: query, page: 1, filters: [])
+                    guard !Task.isCancelled else { return }
                     await MainActor.run { self.searchNovels = result.entries }
                 }
+                print("🔍 [SourceView] Search complete for '\(query)'")
+            } catch is CancellationError {
+                print("🔍 [SourceView] Search cancelled for '\(query)'")
             } catch {
-                print("Search failed: \(error)")
+                print("🔍 [SourceView] Search failed: \(error)")
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
                     self.errorMessage = "Search error: \(error.localizedDescription)"
                 }
@@ -330,27 +346,50 @@ struct SourceView: View {
     }
 
     private func loadPlugin() async {
-        guard !isLoaded else { return }
+        guard !isLoaded else {
+            print("📦 [SourceView] loadPlugin skipped — already loaded for \(plugin.info.name)")
+            return
+        }
+        print("📦 [SourceView] loadPlugin START for \(plugin.info.name) (id: \(plugin.id))")
         do {
-            let pluginRunner = ItoRunner()
-            await pluginRunner.setNetModule(AppNetModule())
-            await pluginRunner.setStdModule(DefaultStdModule())
-            let pluginId = plugin.url.deletingPathExtension().lastPathComponent
-            await pluginRunner.setDefaultsModule(DefaultDefaultsModule(pluginId: pluginId))
-            await pluginRunner.setHtmlModule(DefaultHtmlModule())
-            await pluginRunner.setJsModule(DefaultJsModule())
+            print("📦 [SourceView] Getting cached runner from PluginManager...")
+            let pluginRunner = try await PluginManager.shared.getRunner(for: plugin.id)
+            print("📦 [SourceView] Runner obtained")
 
-            _ = try await pluginRunner.loadBundle(from: plugin.url)
+            guard !Task.isCancelled else {
+                print("📦 [SourceView] Task cancelled after getRunner")
+                return
+            }
+
             self.runner = pluginRunner
 
+            print("📦 [SourceView] Fetching settings schema...")
             let schema = try? await pluginRunner.getSettings()
+
+            guard !Task.isCancelled else {
+                print("📦 [SourceView] Task cancelled after getSettings")
+                return
+            }
+
+            print("📦 [SourceView] Fetching home layout...")
             let layout = try await pluginRunner.getHome()
+
+            guard !Task.isCancelled else {
+                print("📦 [SourceView] Task cancelled after getHome")
+                return
+            }
+
+            print("📦 [SourceView] loadPlugin SUCCESS — \(layout.components.count) components")
             await MainActor.run {
                 self.settingsSchema = schema
                 self.homeLayout = layout
                 self.isLoaded = true
             }
+        } catch is CancellationError {
+            // Don't mark isLoaded — let a future .task re-attempt
+            print("📦 [SourceView] loadPlugin CANCELLED for \(plugin.info.name)")
         } catch {
+            print("📦 [SourceView] loadPlugin FAILED for \(plugin.info.name): \(error)")
             await MainActor.run {
                 self.errorMessage = error.localizedDescription
                 self.isLoaded = true
