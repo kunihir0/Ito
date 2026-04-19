@@ -29,24 +29,37 @@ public struct ChapterRowView<C: ChapterDisplayable>: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PressRecordingButtonStyle(isPressed: $isPressed))
+        .disabled(chapter.isPaywalled)
+    }
+
+    /// The foreground color for the chapter title, respecting paywalled, read, and default states.
+    private var titleColor: Color {
+        if chapter.isPaywalled { return .secondary }
+        return isRead ? .secondary : .primary
+    }
+
+    /// The foreground color for subtitle elements like date and scanlator.
+    private var subtitleColor: Color {
+        if chapter.isPaywalled { return Color(.tertiaryLabel) }
+        return .secondary
     }
 
     @ViewBuilder
     private var chapterTitle: some View {
         if let title = chapter.title, !title.isEmpty {
             Text(title).font(.subheadline)
-                .fontWeight(isRead ? .regular : .semibold)
-                .foregroundStyle(isRead ? Color.secondary : Color.primary)
+                .fontWeight(chapter.isPaywalled ? .regular : (isRead ? .regular : .semibold))
+                .foregroundStyle(titleColor)
                 .lineLimit(2)
         } else if let num = chapter.chapterNumber {
             let isWhole = num.truncatingRemainder(dividingBy: 1) == 0
             Text("\(chapter is Anime.Episode ? "Episode" : "Chapter") \(isWhole ? String(Int(num)) : String(num))")
                 .font(.subheadline)
-                .fontWeight(isRead ? .regular : .semibold)
-                .foregroundStyle(isRead ? Color.secondary : Color.primary)
+                .fontWeight(chapter.isPaywalled ? .regular : (isRead ? .regular : .semibold))
+                .foregroundStyle(titleColor)
                 .lineLimit(1)
         } else {
-            Text("\(chapter is Anime.Episode ? "Episode" : "Chapter") —").font(.subheadline).fontWeight(.regular).foregroundStyle(Color.secondary)
+            Text("\(chapter is Anime.Episode ? "Episode" : "Chapter") —").font(.subheadline).fontWeight(.regular).foregroundStyle(titleColor)
         }
     }
 
@@ -55,15 +68,15 @@ public struct ChapterRowView<C: ChapterDisplayable>: View {
         HStack(spacing: 4) {
             if let dateUpload = chapter.dateUpload {
                 Text(dateUpload)
-                    .font(.caption).foregroundStyle(Color.secondary)
+                    .font(.caption).foregroundStyle(subtitleColor)
             }
             if let scanlator = chapter.scanlator, !scanlator.isEmpty {
                 if chapter.dateUpload != nil {
-                    Text("·").font(.caption).foregroundStyle(Color.secondary)
+                    Text("·").font(.caption).foregroundStyle(subtitleColor)
                 }
                 Text(scanlator)
                     .font(chapter is Anime.Episode ? .caption2.weight(.semibold) : .caption)
-                    .foregroundStyle(Color.secondary)
+                    .foregroundStyle(subtitleColor)
                     .lineLimit(1)
             }
         }
@@ -72,8 +85,9 @@ public struct ChapterRowView<C: ChapterDisplayable>: View {
     @ViewBuilder
     private var trailingIcon: some View {
         if chapter.isPaywalled {
-            Image(systemName: "lock.fill").font(.caption).foregroundStyle(.yellow)
-                .padding(6).background(Color.yellow.opacity(0.15)).clipShape(Circle())
+            Image(systemName: "lock.fill")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         } else if isRead {
             Image(systemName: "checkmark.circle.fill").font(chapter is Anime.Episode ? .title3 : .subheadline).foregroundStyle(Color.secondary)
         } else if chapter is Anime.Episode {

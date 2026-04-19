@@ -10,24 +10,44 @@ extension UTType {
 }
 
 // MARK: - BrowseView
+// Thin wrapper that owns the NavigationView. It does NOT observe any
+// ObservableObject so its body is evaluated exactly once, keeping the
+// NavigationView identity (and therefore the navigation stack) stable
+// even when PluginManager or RepoManager publish changes.
 
 struct BrowseView: View {
-    @StateObject private var pluginManager = PluginManager.shared
-    @StateObject private var repoManager = RepoManager.shared
+    var body: some View {
+        NavigationView {
+            BrowseContentView()
+        }
+        .navigationViewStyle(.stack)
+    }
+}
+
+// MARK: - BrowseContentView
+// All observable state lives here. Because this view is a *child* of
+// NavigationView (not the view that owns it), re-renders caused by
+// PluginManager / RepoManager changes do NOT destabilise the
+// navigation stack.
+
+private struct UpdateItem: Identifiable {
+    var id: String { pkg.id }
+    let pkg: RepoPackage
+    let repoUrl: String
+}
+
+private struct BrowseContentView: View {
+    @ObservedObject private var pluginManager = PluginManager.shared
+    @ObservedObject private var repoManager = RepoManager.shared
 
     @State private var errorMessage: String?
     @State private var showDeleteConfirmation = false
     @State private var pendingDeleteOffsets: IndexSet?
     @State private var isInstallingUpdate: String? // plugin id currently updating
+    @State private var showRepositories = false // Drives programmatic navigation
 
     private var sortedPlugins: [InstalledPlugin] {
         pluginManager.installedPlugins.values.sorted { $0.info.name < $1.info.name }
-    }
-
-    struct UpdateItem: Identifiable {
-        var id: String { pkg.id }
-        let pkg: RepoPackage
-        let repoUrl: String
     }
 
     private var availableUpdates: [UpdateItem] {
@@ -52,28 +72,29 @@ struct BrowseView: View {
     }
 
     var body: some View {
-        NavigationView {
-            ZStack {
-                if pluginManager.installedPlugins.isEmpty {
-                    emptyStateView
-                } else {
-                    pluginListView
-                }
+        ZStack {
+            NavigationLink(destination: RepositoriesView(), isActive: $showRepositories) {
+                EmptyView()
+            }.hidden()
 
-                errorToastView
+            if pluginManager.installedPlugins.isEmpty {
+                emptyStateView
+            } else {
+                pluginListView
             }
-            .contentShape(Rectangle())
-            .onDrop(of: [.item, .fileURL, .ito], isTargeted: nil) { providers in
-                handleDrop(providers: providers)
-            }
-            .onOpenURL { url in
-                print("System routed .onOpenURL trigger with \(url)")
-                Task { await handleOpenURL(url) }
-            }
-            .navigationTitle("Browse")
-            .navigationBarItems(trailing: repositoriesButton)
-            .navigationViewStyle(.stack)
+
+            errorToastView
         }
+        .contentShape(Rectangle())
+        .onDrop(of: [.item, .fileURL, .ito], isTargeted: nil) { providers in
+            handleDrop(providers: providers)
+        }
+        .onOpenURL { url in
+            print("System routed .onOpenURL trigger with \(url)")
+            Task { await handleOpenURL(url) }
+        }
+        .navigationTitle("Browse")
+        .navigationBarItems(trailing: repositoriesButton)
         // Destructive delete confirmation
         .confirmationDialog(
             "Remove Plugin",
@@ -112,7 +133,7 @@ struct BrowseView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
 
-            NavigationLink(destination: RepositoriesView()) {
+            Button(action: { showRepositories = true }) {
                 Label("Browse Repositories", systemImage: "globe")
                     .font(.subheadline.weight(.medium))
                     .padding(.horizontal, 20)
@@ -220,7 +241,7 @@ struct BrowseView: View {
     }
 
     private var repositoriesButton: some View {
-        NavigationLink(destination: RepositoriesView()) {
+        Button(action: { showRepositories = true }) {
             Image(systemName: "globe")
         }
         .accessibilityLabel("Repositories")
@@ -372,8 +393,8 @@ struct BrowseView: View {
 
 // MARK: - UpdateRowView
 
-struct UpdateRowView: View {
-    let updateItem: BrowseView.UpdateItem
+private struct UpdateRowView: View {
+    let updateItem: UpdateItem
     let isInstalling: Bool
     let onUpdate: () -> Void
 

@@ -6,13 +6,14 @@ import ito_runner
 // MARK: - RepositoriesView
 
 struct RepositoriesView: View {
-    @StateObject private var repoManager = RepoManager.shared
+    @ObservedObject private var repoManager = RepoManager.shared
     @State private var showingAddRepo = false
     @State private var newRepoUrl = ""
     @State private var isAddingRepo = false
     @State private var addRepoError: String?
     @State private var showDeleteConfirmation = false
     @State private var pendingDeleteOffsets: IndexSet?
+    @State private var selectedRepoUrl: String?
 
     var body: some View {
         Group {
@@ -93,7 +94,11 @@ struct RepositoriesView: View {
     private var repoListView: some View {
         List {
             ForEach(repoManager.repositories) { repo in
-                NavigationLink(destination: RepoDetailView(repository: repo)) {
+                NavigationLink(
+                    destination: RepoDetailView(repository: repo),
+                    tag: repo.url,
+                    selection: $selectedRepoUrl
+                ) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(repo.index?.repoName ?? "Unknown Repository")
                             .font(.headline)
@@ -204,8 +209,8 @@ struct RepositoriesView: View {
 
 struct RepoDetailView: View {
     let repository: Repository
-    @StateObject private var repoManager = RepoManager.shared
-    @StateObject private var pluginManager = PluginManager.shared
+    @ObservedObject private var repoManager = RepoManager.shared
+    @ObservedObject private var pluginManager = PluginManager.shared
 
     @State private var searchQuery = ""
     @State private var installingPackageId: String?
